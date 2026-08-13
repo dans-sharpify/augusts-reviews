@@ -1,0 +1,159 @@
+<!-- AUGUSTS icon set — hand-drawn engraving line-art.
+     Single ink, 1.4 stroke on a 48 grid, occasional crosshatch for shading, no fills.
+     Inlined into index.html so every glyph inherits currentColor and costs no request.
+     A KIE-generated set can drop in later without touching the markup — see
+     build/gen-icons.py. -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <g id="i-base" fill="none" stroke="currentColor" stroke-width="1.4"
+       stroke-linecap="round" stroke-linejoin="round"/>
+  </defs>
+
+  <!-- SCISSORS — griezums -->
+  <symbol id="ic-scissors" viewBox="0 0 48 48">
+    <g fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="37" r="5.2"/>
+      <circle cx="36" cy="37" r="5.2"/>
+      <path d="M15.6 33.2 34 7.5"/>
+      <path d="M32.4 33.2 14 7.5"/>
+      <circle cx="24" cy="24.6" r="1.5"/>
+      <!-- hatch on the blades -->
+      <path d="M27.5 15.2l2.6 1.9M29.9 11.8l2.6 1.9M25.1 18.6l2.6 1.9" opacity=".55"/>
+      <path d="M20.5 15.2l-2.6 1.9M18.1 11.8l-2.6 1.9M22.9 18.6l-2.6 1.9" opacity=".55"/>
+    </g>
+  </symbol>
+
+  <!-- TINT BOWL + BRUSH — krāsošana -->
+  <symbol id="ic-colour" viewBox="0 0 48 48">
+    <g fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M7 26h26a0 0 0 0 1 0 0 13 13 0 0 1-13 13h0A13 13 0 0 1 7 26z"/>
+      <path d="M33 26.5c3.4-.4 6-1.6 6-3s-2.6-2.6-6-3"/>
+      <path d="M35.5 8.5 27 22"/>
+      <path d="M33.2 6.9 41 12l-3.4 4.6-5.9-3.9z"/>
+      <!-- liquid hatch -->
+      <path d="M11.5 30.5h17M13.5 34h13M17 37.2h6" opacity=".5"/>
+    </g>
+  </symbol>
+
+  <!-- FOIL WRAP ON A STRAND — balināšana.
+       Two strands, not three, and the foil is a folded parallelogram with a
+       turned corner: at 30px the earlier version read as a comb. -->
+  <symbol id="ic-foil" viewBox="0 0 48 48">
+    <g fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M18 4c-3 6-3.8 11-2.4 15.5"/>
+      <path d="M30 4c-3 6-3.8 11-2.4 15.5"/>
+      <path d="M16.4 32.5C15 37 15.6 41 18 44"/>
+      <path d="M28.4 32.5C27 37 27.6 41 30 44"/>
+      <!-- the foil packet -->
+      <path d="M10 20.5h28l-3 11H13z"/>
+      <path d="M35 20.5l-2 5.5 5-5.5z"/>
+      <path d="M16 24h16M17 27.5h14" opacity=".5"/>
+    </g>
+  </symbol>
+
+  <!-- DROPLET — tonēšana -->
+  <symbol id="ic-drop" viewBox="0 0 48 48">
+    <g fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M24 5c0 0-11 13.4-11 21a11 11 0 0 0 22 0C35 18.4 24 5 24 5z"/>
+      <path d="M19.5 27.5a4.5 4.5 0 0 0 4.5 4.5" opacity=".7"/>
+      <path d="M17 21.5c1.6-3 3.6-6 5.4-8.4M20.6 22.8c1.6-3 3.6-6 5.4-8.4" opacity=".45"/>
+    </g>
+  </symbol>
+
+  <!-- RAZOR / BEARD — bārdas formēšana -->
+  <symbol id="ic-razor" viewBox="0 0 48 48">
+    <g fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M8 8 21 21"/>
+      <path d="M19.5 19.5 38 38a3.5 3.5 0 0 1-5 5L14.5 24.5z"/>
+      <path d="M23 26.5 32 35.5M27 22.5 36 31.5" opacity=".5"/>
+      <path d="M11.5 5.5 8 8l2.5 3.5" opacity=".8"/>
+    </g>
+  </symbol>
+
+  <!-- SPROUT — bērniem -->
+  <symbol id="ic-sprout" viewBox="0 0 48 48">
+    <g fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M24 42V20"/>
+      <path d="M24 24c0-6-4.5-10.5-11-11 0 6.5 4.5 11 11 11z"/>
+      <path d="M24 20c0-6.5 4.5-11.5 11-12 0 7-4.5 12-11 12z"/>
+      <path d="M17 38h14" opacity=".7"/>
+      <path d="M18.5 19.5c1.6.8 3 2 4 3.4M29.5 15c-1.6.9-3 2.2-4 3.7" opacity=".45"/>
+    </g>
+  </symbol>
+
+  <!-- MIRROR — the salon -->
+  <symbol id="ic-mirror" viewBox="0 0 48 48">
+    <g fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+      <ellipse cx="24" cy="19" rx="13" ry="16"/>
+      <ellipse cx="24" cy="19" rx="9.5" ry="12.5" opacity=".55"/>
+      <path d="M24 35v8M18 43h12"/>
+      <path d="M19 12.5c1.4-2.4 3.4-4 5.8-4.7M17.5 18c.4-1.6 1-3 1.9-4.3" opacity=".6"/>
+    </g>
+  </symbol>
+
+  <!-- ROWAN SPRIG — the brand mark -->
+  <symbol id="ic-rowan" viewBox="0 0 48 48">
+    <g fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M24 43V26"/>
+      <path d="M24 26 13 15M24 26l11-11"/>
+      <circle cx="11" cy="12.5" r="3.6"/>
+      <circle cx="37" cy="12.5" r="3.6"/>
+      <circle cx="24" cy="7" r="3.6"/>
+      <path d="M24 26v-9.5"/>
+      <path d="M16.5 31.5c-2.5-1.4-4.2-3.6-5-6.6 3 .3 5.4 1.6 7 3.8M31.5 31.5c2.5-1.4 4.2-3.6 5-6.6-3 .3-5.4 1.6-7 3.8" opacity=".7"/>
+    </g>
+  </symbol>
+
+  <!-- CLOCK — darba laiks -->
+  <symbol id="ic-clock" viewBox="0 0 48 48">
+    <g fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="24" cy="24" r="17"/>
+      <path d="M24 13v11l7 5"/>
+      <path d="M24 7v3M24 38v3M41 24h-3M10 24H7" opacity=".7"/>
+    </g>
+  </symbol>
+
+  <!-- PIN — adrese -->
+  <symbol id="ic-pin" viewBox="0 0 48 48">
+    <g fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M24 43s13-10.5 13-21a13 13 0 1 0-26 0c0 10.5 13 21 13 21z"/>
+      <circle cx="24" cy="21" r="5"/>
+    </g>
+  </symbol>
+
+  <!-- PHONE -->
+  <symbol id="ic-phone" viewBox="0 0 48 48">
+    <g fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M43 34.5v6a4 4 0 0 1-4.4 4 39.6 39.6 0 0 1-17.2-6.1 39 39 0 0 1-12-12A39.6 39.6 0 0 1 3.3 9.1 4 4 0 0 1 7.3 4.7h6a4 4 0 0 1 4 3.4 25.7 25.7 0 0 0 1.4 5.6 4 4 0 0 1-.9 4.2l-2.5 2.5a32 32 0 0 0 12 12l2.5-2.5a4 4 0 0 1 4.2-.9 25.7 25.7 0 0 0 5.6 1.4 4 4 0 0 1 3.4 4.1z"/>
+    </g>
+  </symbol>
+
+  <!-- ENVELOPE -->
+  <symbol id="ic-mail" viewBox="0 0 48 48">
+    <g fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="4" y="9" width="40" height="30" rx="3"/>
+      <path d="m4 13 20 13L44 13"/>
+    </g>
+  </symbol>
+
+  <!-- HAND / CARE — saudzīgi -->
+  <symbol id="ic-care" viewBox="0 0 48 48">
+    <g fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M24 42S8 32 8 20.5A8.5 8.5 0 0 1 24 16a8.5 8.5 0 0 1 16 4.5C40 32 24 42 24 42z"/>
+      <path d="M15 19.5c.4-2.2 2-3.9 4.2-4.4" opacity=".6"/>
+      <path d="M12.5 26c1.7 2.4 3.9 4.6 6.4 6.6M16.5 24c1.7 2.4 3.9 4.6 6.4 6.6" opacity=".4"/>
+    </g>
+  </symbol>
+
+  <!-- DOOR 19 — the salon door -->
+  <symbol id="ic-door" viewBox="0 0 48 48">
+    <g fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M11 43V8a3 3 0 0 1 3-3h20a3 3 0 0 1 3 3v35"/>
+      <path d="M7 43h34"/>
+      <circle cx="31" cy="25" r="1.6"/>
+      <!-- the house number, drawn as strokes so it needs no font -->
+      <path d="M20.5 12.5l1.6-1.2v8.4"/>
+      <path d="M29.5 15.4a2.7 2.7 0 1 1-2.7-2.7 2.7 2.7 0 0 1 2.7 2.7c0 2.4-1 4-2.9 4.7"/>
+    </g>
+  </symbol>
+</svg>

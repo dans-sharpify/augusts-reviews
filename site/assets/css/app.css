@@ -1,0 +1,870 @@
+/* ==========================================================================
+   AUGUSTS /08/ — frizierdarbnīca, Miera iela 19, Rīga
+   "Dirty hippy": earthy 70s palette, analog grain, taped-photo collage,
+   wonky serif display. Palette is derived from the client's own assets —
+   --gold and --taupe are lifted verbatim from their existing fortic.io CSS
+   variables, the rest is sampled from @augusts08 photography.
+   ========================================================================== */
+
+/* ---------- fonts (self-hosted, subset to Latvian + English) -------------- */
+@font-face {
+  font-family: 'Fraunces';
+  src: url('../fonts/fraunces.woff2') format('woff2-variations');
+  font-weight: 300 700;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Work Sans';
+  src: url('../fonts/worksans.woff2') format('woff2-variations');
+  font-weight: 400 600;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Courier Prime';
+  src: url('../fonts/courier.woff2') format('woff2');
+  font-weight: 400;
+  font-display: swap;
+}
+
+/* ---------- tokens -------------------------------------------------------- */
+:root {
+  --ink:      #12140E;
+  --ink-2:    #1A1E15;
+  --forest:   #17251C;
+  --moss:     #24301B;
+  --rust:     #B4502E;
+  --rust-dp:  #8F3C22;
+  --gold:     #B5A56B;   /* client's own brand variable */
+  --tan:      #C7936C;
+  --sage:     #AFC2BD;
+  --cream:    #EDE6D6;
+  --paper:    #F4EFE3;
+  --taupe:    #8E8A7B;   /* client's own brand variable */
+  --brown:    #3E1800;   /* client's own brand variable */
+
+  /* The logo's own colour, read straight out of the print artwork the client
+     sent (rgb 1 / 0.9487 / 0 = process yellow). It is the LOGO's colour and
+     nothing else's: at 19.2:1 against --ink it is the strongest thing on a dark
+     surface, which is right for a mark and wrong for body copy, and against
+     --paper it is 1.13:1 — invisible. So the mark ships in --brand only where
+     the ground is dark (header, film, footer, 404, thank-you) and the earthy
+     --gold keeps every other accent. */
+  --brand:    #FFF200;
+
+  --display: 'Fraunces', Georgia, 'Times New Roman', serif;
+  --body:    'Work Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mono:    'Courier Prime', ui-monospace, 'Courier New', monospace;
+
+  --wrap: 1180px;
+  --gut: clamp(1.15rem, 4vw, 3rem);
+
+  /* Fraunces variable axes — SOFT/WONK are what give it the 70s warmth */
+  --wonk-on:  'SOFT' 60, 'WONK' 1;
+  --wonk-off: 'SOFT' 30, 'WONK' 0;
+}
+
+/* ---------- reset --------------------------------------------------------- */
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+
+/* CSS `scroll-behavior: smooth` is deliberately NOT set on <html>. Any scroll
+   measurement that jumps the scroller to 0 and restores it (the film does this
+   on resize) measures at the old position while the glide animates, recording
+   every offset short by the current scrollY. In-page anchors get a per-call
+   smooth scroll from JS instead; the no-JS path keeps the CSS glide. */
+html:not(.js) { scroll-behavior: smooth; }
+
+@media (prefers-reduced-motion: reduce) {
+  html, html:not(.js) { scroll-behavior: auto; }
+  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
+body {
+  margin: 0;
+  background: var(--ink);
+  color: var(--cream);
+  font-family: var(--body);
+  font-size: clamp(1rem, .96rem + .2vw, 1.08rem);
+  line-height: 1.65;
+  /* `clip`, never `hidden`: overflow-x:hidden makes <body> a scroll container,
+     which silently kills every `position: sticky` stage in the film. `clip`
+     clips identically without creating one. */
+  overflow-x: clip;
+}
+img, svg, iframe { max-width: 100%; display: block; }
+img { height: auto; }
+a { color: inherit; }
+button { font: inherit; color: inherit; }
+
+h1, h2, h3, h4 {
+  font-family: var(--display);
+  font-variation-settings: var(--wonk-on);
+  font-weight: 500;
+  line-height: 1.02;
+  letter-spacing: -.015em;
+  margin: 0;
+  /* Latvian ģ/ķ/ļ/ņ carry a comma below the baseline — give descenders room
+     so a tight line-height + any clipping ancestor can't shave them off */
+  padding-bottom: .08em;
+}
+
+/* Fraunces ships old-style (jumping) figures by default. Every price, phone
+   number and duration on this page must sit on one consistent baseline. */
+.num, .price, .dur, time { font-variant-numeric: lining-nums tabular-nums; }
+
+/* ---------- layout helpers ------------------------------------------------ */
+.wrap { width: min(var(--wrap), 100% - var(--gut) * 2); margin-inline: auto; }
+.section { padding: clamp(3.75rem, 9vw, 7.5rem) 0; position: relative; }
+
+.eyebrow {
+  font-family: var(--mono);
+  font-size: .74rem;
+  letter-spacing: .26em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin: 0 0 1.1rem;
+  display: flex;
+  align-items: center;
+  gap: .7rem;
+}
+.eyebrow::before {
+  content: ""; width: clamp(22px, 5vw, 46px); height: 1px;
+  background: currentColor; flex: none; opacity: .8;
+}
+
+.h-lg { font-size: clamp(2.05rem, 5.6vw, 3.7rem); }
+.h-md { font-size: clamp(1.4rem, 3vw, 2rem); }
+
+.lead { font-size: clamp(1.05rem, 1rem + .45vw, 1.3rem); color: #D8D2C2; max-width: 56ch; }
+.muted { color: var(--taupe); }
+
+/* ---------- grain ---------------------------------------------------------
+   Applied at the very end of this file as a background LAYER on each themed
+   surface — see "grain layer" below. It used to be one `position: fixed`
+   full-viewport overlay, which has to be re-composited on every scrolled
+   frame across the entire page; bisecting the film showed that overlay and
+   the berry canvas each costing ~16ms of p95 independently, the signature of
+   a total-surface problem rather than one bad element. As a background layer
+   it is rasterised once per section. Alpha is baked into the PNG so no
+   wrapper element and no opacity are needed. Never `mix-blend-mode`. */
+
+/* ---------- buttons ------------------------------------------------------- */
+.btn {
+  --bg: var(--rust); --fg: var(--paper); --bd: var(--rust);
+  display: inline-flex; align-items: center; justify-content: center; gap: .6rem;
+  /* As a flex item a button will happily shrink below its own label, and the
+     text is then clipped *inside* a box that still fits the viewport — so a
+     document-width overflow probe never sees it. */
+  flex: none;
+  padding: .92em 1.65em;
+  background: var(--bg); color: var(--fg);
+  border: 1.5px solid var(--bd); border-radius: 999px;
+  font-family: var(--mono); font-size: .84rem;
+  letter-spacing: .14em; text-transform: uppercase;
+  text-decoration: none; cursor: pointer;
+  white-space: nowrap;              /* never let a label wrap into a 2-line pill */
+  transition: transform .18s ease, background .18s ease, color .18s ease;
+}
+.btn:hover { transform: translateY(-2px) rotate(-.6deg); background: var(--rust-dp); border-color: var(--rust-dp); }
+.btn:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
+.btn--ghost { --bg: transparent; --fg: var(--cream); --bd: rgba(237,230,214,.35); }
+.btn--ghost:hover { --bg: rgba(237,230,214,.08); background: rgba(237,230,214,.08); border-color: var(--cream); }
+.btn--sm { padding: .62em 1.15em; font-size: .74rem; }
+/* The header CTA. It is the only button competing with a full nav for the
+   header's width, and Latvian's "REZERVĒT" is nearly twice the length of "BOOK",
+   so it steps down in two stages — the space for it on small screens is clawed
+   back from the logo lockup below, not from the button. */
+.btn--hdr { padding: .92em 1.75em; font-size: .92rem; letter-spacing: .13em; }
+@media (max-width: 900px) { .btn--hdr { padding: .86em 1.55em; font-size: .86rem; } }
+@media (max-width: 480px) { .btn--hdr { padding: .8em 1.3em; font-size: .82rem; letter-spacing: .1em; } }
+
+/* ==========================================================================
+   HEADER
+   ========================================================================== */
+.hdr {
+  position: sticky; top: 0; z-index: 80;
+  background: rgba(18,20,14,.86);
+  border-bottom: 1px solid rgba(181,165,107,.18);
+  transition: background .35s ease, border-color .35s ease;
+}
+/* At the very top the header floats over the film's opening frame — a solid
+   bar there would cut the wordmark composition in half. No backdrop-filter:
+   blurring a scrolling film behind fixed chrome re-blurs it every frame. */
+.hdr--float { background: transparent; border-bottom-color: transparent; }
+.hdr__in { display: flex; align-items: center; gap: 1.2rem; padding: .7rem 0; }
+/* The traced artwork, in the logo's own yellow. `currentColor` on the paths, so
+   the same three symbols also serve the footer and the 404 / thank-you marks in
+   whatever colour those set. */
+.hdr__logo { display: flex; align-items: center; text-decoration: none; margin-right: auto; color: var(--brand); }
+.hdr__lg { display: block; height: auto; flex: none; }
+.hdr__lg--full { width: 148px; }
+/* Wordmark-only fallback for the narrow end — see the note in the template. */
+.hdr__lg--word { display: none; width: 104px; }
+
+.nav { display: flex; align-items: center; gap: clamp(.9rem, 2vw, 1.9rem); }
+/* `:not(.btn)` is load-bearing. `.nav a` is (0,1,1) and outranks `.btn` (0,1,0),
+   so without it this rule wins over the button component inside the header and
+   the CTA silently takes a nav link's font-size and `padding: .3rem 0` — a pill
+   with no horizontal padding, immune to .btn--sm / .btn--hdr. */
+.nav a:not(.btn) {
+  font-family: var(--mono); font-size: .78rem; letter-spacing: .12em;
+  text-transform: uppercase; text-decoration: none; color: #CFC9BA;
+  padding: .3rem 0; border-bottom: 1px solid transparent;
+}
+.nav a:not(.btn):hover { color: var(--gold); border-bottom-color: var(--gold); }
+
+/* ---------- EN | LV switch -------------------------------------------------
+   English is the main page (index.html), Latvian the second variant (lv.html).
+   Both hrefs are relative so the switch also works from the file:// preview.
+   The nav's own `border-bottom` hover has to be cancelled inside the pill. */
+.langpill {
+  display: inline-flex; align-items: center; flex: none;
+  border: 1.5px solid rgba(237,230,214,.26); border-radius: 999px; overflow: hidden;
+}
+.nav .langpill a {
+  padding: .36em .64em; font-size: .68rem; letter-spacing: .1em;
+  line-height: 1.3; color: var(--taupe); border-bottom: 0;
+  transition: background .16s ease, color .16s ease;
+}
+.nav .langpill a:hover { color: var(--cream); background: rgba(237,230,214,.1); border-bottom-color: transparent; }
+.nav .langpill a[aria-current="page"] { background: var(--gold); color: var(--ink); }
+
+/* ---------- header width budget -------------------------------------------
+   Below 900px the four section links are gone and the row is logo + EN|LV +
+   CTA. In Latvian that row does not fit a phone once the CTA is a real pill
+   ("REZERVĒT" is 8 tracked characters), so the logo gives the space back in two
+   steps rather than the CTA shrinking to nothing. Measure per language: LV is
+   always the binding case. */
+/* Six section links now (Atsauksmes joined them, and PAKALPOJUMI is three
+   characters longer than CENRĀDIS was), and Latvian sets every one of them
+   longer than English. Between 900px — where the links drop out entirely — and
+   roughly 1100px the row is the tightest it ever gets, so the links give back
+   tracking there rather than the CTA shrinking.
+
+   Two steps, not one. Measured in Latvian at the breakpoint EDGE (901px, the
+   worst case): one step left 3px of slack, which is not slack — it is one font
+   fallback away from an overflow, and Courier New is wider than Courier Prime.
+   The second step puts ~50px under it. */
+@media (max-width: 1100px) {
+  .nav { gap: .85rem; }
+  .nav a:not(.btn) { font-size: .72rem; letter-spacing: .07em; }
+  .hdr__lg--full { width: 132px; }
+}
+@media (max-width: 990px) {
+  .nav { gap: .7rem; }
+  .nav a:not(.btn) { font-size: .68rem; letter-spacing: .04em; }
+  .hdr__lg--full { width: 124px; }
+}
+@media (max-width: 480px) {
+  .hdr__in { gap: .75rem; }
+  .nav { gap: .75rem; }
+  .hdr__lg--full { width: 122px; }
+  .nav .langpill a { padding: .34em .52em; font-size: .64rem; }
+}
+/* 375px (iPhone SE/8) is the tight one in Latvian — one more step of the logo
+   buys the CTA its full width there instead of squeezing the lockup. Below 420px
+   the lockup also drops to the wordmark alone: FRIZIERDARBNĪCA is 4.1% of the
+   logo's width in height, which at a 122px logo is five pixels of tracked caps.
+   AUGUSTS alone is both narrower and legible. */
+@media (max-width: 420px) {
+  .hdr__in { gap: .6rem; }
+  .hdr__lg--full { display: none; }
+  .hdr__lg--word { display: block; width: 104px; }
+}
+@media (max-width: 374px) {
+  .hdr__lg--word { width: 88px; }
+}
+/* The section links live in a wrapper span so one rule can drop all four on
+   narrow screens. Keep this in the stylesheet — an inline display:contents on
+   the span would outrank the media query and blow the header past the viewport. */
+.nav__links { display: contents; }
+@media (max-width: 900px) { .nav__links { display: none; } }
+
+/* ==========================================================================
+   SERVICES
+   ========================================================================== */
+.svc { background: var(--paper); color: var(--ink); }
+.svc .eyebrow { color: var(--rust); }
+.svc__head { display: grid; grid-template-columns: 1fr auto; gap: 1.5rem; align-items: end; margin-bottom: clamp(2rem, 4vw, 3rem); }
+@media (max-width: 760px) { .svc__head { grid-template-columns: 1fr; } }
+.svc__note { font-family: var(--mono); font-size: .78rem; color: #6B6558; max-width: 30ch; line-height: 1.6; }
+/* the price list's own heading, one step down from the section's */
+.svc__head--sub { margin-top: clamp(3rem, 6vw, 4.5rem); padding-top: clamp(2rem, 4vw, 3rem); border-top: 1.5px solid rgba(18,20,14,.16); }
+
+/* ---------- the six service cards ----------
+   The whole card is the <a>, so every child is inline-level markup (<span>, not
+   <div> or <p>) — a <div> inside an <a> is valid HTML5 but `display: grid` on the
+   anchor is what actually lays this out, and keeping the children spans means the
+   no-CSS fallback is still a readable line of text rather than four stacked
+   blocks. */
+.svgrid {
+  display: grid; gap: clamp(1.1rem, 2.4vw, 1.8rem);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+@media (max-width: 900px) { .svgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .svgrid { grid-template-columns: 1fr; } }
+
+.svcard {
+  display: grid; align-content: start; gap: .55rem;
+  text-decoration: none; color: inherit;
+  transition: transform .22s cubic-bezier(.2,.7,.3,1);
+}
+.svcard > * { min-width: 0; }
+.svcard:hover { transform: translateY(-3px); }
+.svcard:focus-visible { outline: 2px solid var(--rust); outline-offset: 6px; border-radius: 6px; }
+
+.svcard__pic {
+  display: block; overflow: hidden; background: var(--ink-2);
+  border-radius: clamp(16px, 2.4vw, 28px);
+  margin-bottom: .5rem;
+}
+.svcard__pic img {
+  width: 100%; height: 100%; object-fit: cover; aspect-ratio: 1;
+  filter: saturate(.92) contrast(1.03);
+  transition: transform .5s cubic-bezier(.2,.7,.3,1), filter .4s ease;
+}
+.svcard:hover .svcard__pic img { transform: scale(1.05); filter: saturate(1.05) contrast(1.05); }
+
+/* baseline, not centre: the name is a 1.3rem serif and the price a .95rem mono,
+   so centring them leaves the price floating above the name's baseline */
+.svcard__row { display: flex; align-items: baseline; gap: .8rem; }
+.svcard__name {
+  font-family: var(--display); font-variation-settings: var(--wonk-off);
+  font-weight: 500; font-size: clamp(1.12rem, 1.02rem + .5vw, 1.35rem);
+  line-height: 1.2; margin-right: auto;
+}
+.svcard__price {
+  font-family: var(--mono); font-size: .92rem; color: var(--rust-dp);
+  white-space: nowrap; flex: none;
+}
+.svcard__note { font-size: .9rem; color: #56503F; line-height: 1.55; }
+/* An underline that only appears on the card's own hover — the card is the link,
+   so the affordance belongs to the whole card, not to a word inside it. */
+.svcard__name { border-bottom: 1.5px solid transparent; padding-bottom: .1em; transition: border-color .18s ease; }
+.svcard:hover .svcard__name { border-bottom-color: var(--rust-dp); }
+
+/* category tabs */
+.tabs { display: flex; flex-wrap: wrap; gap: .55rem; margin-bottom: 2.2rem; }
+.tab {
+  font-family: var(--mono); font-size: .78rem; letter-spacing: .12em; text-transform: uppercase;
+  padding: .68em 1.25em; border-radius: 999px; cursor: pointer;
+  border: 1.5px solid rgba(18,20,14,.22); background: transparent; color: #3A362C;
+  white-space: nowrap; transition: background .16s ease, color .16s ease, border-color .16s ease;
+}
+.tab:hover { border-color: var(--ink); }
+.tab[aria-selected="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.tab:focus-visible { outline: 2px solid var(--rust); outline-offset: 2px; }
+
+.svc__panel[hidden] { display: none; }
+.svc__list { border-top: 1.5px solid rgba(18,20,14,.16); }
+
+.item {
+  display: grid;
+  /* minmax(0,…) on the flexible track: a grid item defaults to min-width:auto,
+     so one long unbreakable service name would widen the track past the
+     viewport rather than wrapping. */
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  gap: .35rem clamp(.9rem, 2.4vw, 1.9rem);
+  align-items: baseline;
+  padding: 1.35rem 0;
+  border-bottom: 1px solid rgba(18,20,14,.13);
+}
+.item > * { min-width: 0; }
+
+.item__ico {
+  display: block;
+  align-self: center;
+  color: var(--rust-dp);
+  opacity: .85;
+}
+.item__ico svg { display: block; width: 30px; height: 30px; }
+@media (max-width: 620px) { .item__ico svg { width: 24px; height: 24px; } }
+.item__name {
+  font-family: var(--display); font-variation-settings: var(--wonk-off);
+  font-weight: 500; font-size: clamp(1.12rem, 1.02rem + .5vw, 1.42rem);
+  line-height: 1.2; margin: 0; padding-bottom: .06em;
+}
+.item__price {
+  font-family: var(--mono); font-size: clamp(.95rem, .9rem + .25vw, 1.1rem);
+  color: var(--rust-dp); white-space: nowrap; letter-spacing: .01em;
+}
+.item__dur {
+  font-family: var(--mono); font-size: .76rem; color: #77705F;
+  white-space: nowrap; letter-spacing: .06em;
+}
+.item__desc {
+  grid-column: 2 / -1; margin: .5rem 0 0;
+  font-size: .93rem; color: #56503F; max-width: 68ch; line-height: 1.6;
+}
+
+/* Per-service booking link — every row is bookable without scrolling to the
+   calendar first. `justify-self: start` matters: a grid item stretches by
+   default, so the underline would run the full width of the row. */
+.item__book, .team__book {
+  justify-self: start;
+  display: inline-flex; align-items: baseline; gap: .45rem;
+  font-family: var(--mono); font-size: .72rem; letter-spacing: .14em;
+  text-transform: uppercase; text-decoration: none;
+  color: var(--rust-dp);
+  border-bottom: 1px solid rgba(143,60,34,.35);
+  padding-bottom: .18rem;
+  transition: color .16s ease, border-color .16s ease;
+}
+.item__book { grid-column: 2 / -1; margin-top: .8rem; }
+.item__book span, .team__book span { transition: transform .18s ease; }
+.item__book:hover, .team__book:hover { color: var(--ink); border-bottom-color: var(--ink); }
+.item__book:hover span, .team__book:hover span { transform: translateX(3px); }
+.item__book:focus-visible, .team__book:focus-visible { outline: 2px solid var(--rust); outline-offset: 3px; }
+
+@media (max-width: 620px) {
+  .item { grid-template-columns: auto minmax(0, 1fr) auto; }
+  .item__dur { grid-column: 2 / -1; order: 5; }
+}
+
+.svc__foot {
+  margin-top: 2.2rem; display: flex; flex-wrap: wrap; gap: 1rem 1.6rem;
+  align-items: center; justify-content: space-between;
+}
+.svc__disclaimer { font-family: var(--mono); font-size: .74rem; color: #6B6558; max-width: 52ch; line-height: 1.7; }
+
+/* ==========================================================================
+   GALLERY
+   ========================================================================== */
+.work { background: var(--ink); }
+.work__grid {
+  display: grid; gap: clamp(.7rem, 1.6vw, 1.2rem);
+  grid-template-columns: repeat(4, 1fr);
+}
+@media (max-width: 900px) { .work__grid { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 560px) { .work__grid { grid-template-columns: repeat(2, 1fr); } }
+/* Rounded squares at the client's request — the 70s arch crop and the tall cell
+   are gone. The radius scales with the cell so the corner keeps the same visual
+   weight from a 130px phone tile up to a 275px desktop one; a fixed 24px reads
+   as a soft rectangle on desktop and as a pill on a phone.
+   `object-position` is set per image in the markup — every source is 4:5, so a
+   square crop discards a fifth of the frame and the default 50% takes it off
+   the top, which is where the heads are. */
+.work__cell {
+  position: relative; overflow: hidden; background: var(--ink-2);
+  border-radius: clamp(14px, 2.2vw, 26px);
+}
+.work__cell img {
+  width: 100%; height: 100%; object-fit: cover; aspect-ratio: 1;
+  filter: saturate(.92) contrast(1.03);
+  transition: transform .5s cubic-bezier(.2,.7,.3,1), filter .4s ease;
+}
+.work__cell:hover img { transform: scale(1.045); filter: saturate(1.05) contrast(1.05); }
+
+/* ==========================================================================
+   ABOUT / salon
+   ========================================================================== */
+.about { background: var(--forest); }
+.about__grid { display: grid; grid-template-columns: .9fr 1.1fr; gap: clamp(2rem, 5vw, 4.5rem); align-items: center; }
+@media (max-width: 900px) { .about__grid { grid-template-columns: 1fr; } }
+.about__img { position: relative; }
+.about__img img { width: 100%; aspect-ratio: 3/4; object-fit: cover; border-radius: 50% 50% 6px 6px / 30% 30% 6px 6px; }
+.about__quote {
+  font-family: var(--display); font-variation-settings: var(--wonk-on);
+  font-style: italic; font-size: clamp(1.35rem, 1.1rem + 1.1vw, 2.05rem);
+  line-height: 1.28; color: var(--cream); margin: 0 0 1.6rem; padding-bottom: .1em;
+}
+.about__quote span { color: var(--gold); }
+.pillars { display: grid; gap: 1.35rem; margin-top: 2.2rem; }
+.pillar { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 1rem; align-items: start; }
+.pillar > * { min-width: 0; }
+.pillar svg { width: 34px; height: 34px; color: var(--gold); flex: none; margin-top: .1rem; }
+.pillar b { display: block; font-family: var(--display); font-size: 1.08rem; font-weight: 500; margin-bottom: .18rem; }
+.pillar p { margin: 0; font-size: .95rem; color: #C4BEAD; line-height: 1.6; }
+
+/* ==========================================================================
+   TEAM — rounded-square portraits ("ieapaļots kvadrāts")
+   `.team__photo` is a fixed square frame with a big border-radius and
+   overflow:hidden, so whatever goes inside it — the monogram SVG that ships
+   today or a photo dropped in later — gets the same crop and the same corner.
+   ========================================================================== */
+.team { background: var(--paper); color: var(--ink); }
+.team .eyebrow { color: var(--rust); }
+.team__grid {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(1.8rem, 4vw, 3.2rem);
+}
+@media (max-width: 780px) { .team__grid { grid-template-columns: 1fr; } }
+
+.team__card {
+  display: grid; grid-template-columns: auto minmax(0, 1fr);
+  gap: clamp(1.1rem, 2.6vw, 1.7rem); align-items: start;
+  padding-top: 1.6rem; border-top: 1.5px solid rgba(18,20,14,.16);
+}
+.team__card > * { min-width: 0; }
+@media (max-width: 420px) { .team__card { grid-template-columns: 1fr; } }
+
+/* `.team__pic` exists only to host the badge outside the clipped frame */
+.team__pic { position: relative; flex: none; width: clamp(112px, 25vw, 164px); }
+.team__photo {
+  width: 100%; aspect-ratio: 1;
+  border-radius: 27%; overflow: hidden;
+  background: var(--forest); color: var(--gold);
+  border: 1.5px solid rgba(18,20,14,.2);
+  display: grid; place-items: center;
+}
+/* Same grade as the gallery cells (`.work__cell img`). The two profile photos
+   come from different shoots — one forest-green, one hot pink — and matching the
+   gallery's treatment settles them against the paper instead of letting one
+   backdrop shout. */
+.team__photo img {
+  width: 100%; height: 100%; object-fit: cover;
+  filter: saturate(.9) contrast(1.03);
+}
+.team__badge {
+  position: absolute; z-index: 2; top: -.55rem; right: -.55rem;
+  font-family: var(--mono); font-size: .66rem; letter-spacing: .06em;
+  background: var(--rust); color: var(--paper);
+  padding: .3em .6em; border-radius: 999px;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.team__name {
+  font-family: var(--display); font-variation-settings: var(--wonk-off);
+  font-weight: 500; font-size: clamp(1.2rem, 1.05rem + .55vw, 1.5rem);
+  line-height: 1.2; margin: 0; padding-bottom: .06em;
+}
+.team__role {
+  font-family: var(--mono); font-size: .72rem; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--rust-dp); margin: .35rem 0 0;
+}
+.team__bio { margin: .8rem 0 0; font-size: .95rem; color: #56503F; line-height: 1.6; max-width: 42ch; }
+.team__langs { margin: .6rem 0 0; font-family: var(--mono); font-size: .74rem; color: #77705F; line-height: 1.6; }
+.team__book { margin-top: 1rem; }
+
+/* ==========================================================================
+   BOOKING
+   ========================================================================== */
+.book { background: var(--moss); }
+.book__card {
+  background: var(--paper); color: var(--ink);
+  padding: clamp(1.4rem, 3.5vw, 2.6rem);
+  box-shadow: 0 26px 70px rgba(0,0,0,.4);
+  position: relative;
+}
+.book__card .tabs { margin-bottom: 1.5rem; }
+.book__hint {
+  font-family: var(--mono); font-size: .78rem; line-height: 1.7;
+  color: #6B6558; margin: 0 0 1.4rem; max-width: 62ch;
+}
+/* No third-party resize script is loaded, so these heights are the contract:
+   nothing grows after boot and nothing below the calendar shifts down on load.
+   Each is the height Calendly's month step actually needs at that frame WIDTH,
+   measured, plus a little slack — and the widest band is not the tallest, because
+   Calendly stacks its event pane above the calendar in the middle range:
+
+     frame ~1060px wide -> needs 700   (desktop, two panes side by side)
+     frame  ~700px wide -> needs 940   (stacked, but still a wide grid)
+     frame  ~308px wide -> needs 860   (mobile stack)
+
+   Deeper steps (the time list, the details form) can exceed these; Calendly
+   scrolls them internally, which is the right behaviour for a framed widget. */
+.book__frameWrap {
+  position: relative; border: 1.5px solid rgba(18,20,14,.16);
+  background: var(--paper); min-height: 730px;
+}
+.book__frameWrap iframe { width: 100%; height: 730px; border: 0; display: block; }
+@media (max-width: 820px) {
+  .book__frameWrap { min-height: 970px; }
+  .book__frameWrap iframe { height: 970px; }
+}
+@media (max-width: 620px) {
+  .book__frameWrap { min-height: 900px; }
+  .book__frameWrap iframe { height: 900px; }
+}
+/* The way out when the calendar cannot be framed (blocked third-party frames,
+   an offline file:// preview) — and a plain convenience otherwise. It sits BELOW
+   the frame, not behind it: `embed_type=Inline` makes Calendly's page background
+   transparent, so anything layered behind the iframe reads through the calendar. */
+.book__fallback {
+  margin: 1.1rem 0 0; text-align: center;
+  font-family: var(--mono); font-size: .76rem; color: #6B6558;
+}
+.book__fallback a { color: var(--rust-dp); text-decoration: underline; text-underline-offset: 3px; }
+.book__fallback a:hover { color: var(--ink); }
+
+/* ---------- modal --------------------------------------------------------- */
+.modal[hidden] { display: none; }
+.modal {
+  position: fixed; inset: 0; z-index: 100;
+  display: grid; place-items: center; padding: clamp(.6rem, 3vw, 2rem);
+  background: rgba(10,12,8,.82);
+}
+.modal__box {
+  position: relative; width: min(920px, 100%); max-height: 92vh; overflow: auto;
+  background: var(--paper); color: var(--ink);
+  box-shadow: 0 30px 80px rgba(0,0,0,.55);
+  -webkit-overflow-scrolling: touch;
+}
+.modal__bar {
+  position: sticky; top: 0; z-index: 2;
+  display: flex; align-items: center; gap: 1rem;
+  padding: .85rem clamp(.9rem, 2.5vw, 1.5rem);
+  background: var(--ink); color: var(--cream);
+}
+.modal__title { font-family: var(--mono); font-size: .78rem; letter-spacing: .16em; text-transform: uppercase; margin: 0 auto 0 0; }
+.modal__x {
+  background: none; border: 1.5px solid rgba(237,230,214,.4); border-radius: 999px;
+  width: 34px; height: 34px; cursor: pointer; line-height: 1;
+  display: grid; place-items: center; flex: none;
+}
+.modal__x:hover { background: rgba(237,230,214,.12); }
+.modal__x:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.modal__body { padding: 0; }
+.modal__body iframe { width: 100%; height: min(76vh, 760px); border: 0; display: block; }
+
+/* ==========================================================================
+   CONTACT / callback form
+   ========================================================================== */
+.contact { background: var(--ink); }
+.contact__grid { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(2rem, 5vw, 4rem); }
+@media (max-width: 860px) { .contact__grid { grid-template-columns: 1fr; } }
+
+.info { display: grid; gap: 1.5rem; align-content: start; }
+.info__row { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 1rem; align-items: start; }
+.info__row > * { min-width: 0; }
+.info__row svg { width: 26px; height: 26px; color: var(--gold); flex: none; margin-top: .1rem; }
+.info__row b { display: block; font-family: var(--mono); font-size: .7rem; letter-spacing: .2em; text-transform: uppercase; color: var(--taupe); margin-bottom: .25rem; }
+.info__row a, .info__row p { margin: 0; text-decoration: none; font-size: 1.04rem; color: var(--cream); }
+.info__row a:hover { color: var(--gold); }
+.hours { font-family: var(--mono); font-size: .92rem; line-height: 1.9; }
+.hours span { color: var(--taupe); }
+
+.form { display: grid; gap: 1rem; }
+.form__row { display: grid; gap: .4rem; }
+.form label { font-family: var(--mono); font-size: .7rem; letter-spacing: .18em; text-transform: uppercase; color: var(--taupe); }
+.form input, .form textarea, .form select {
+  font: inherit; font-size: 1rem;
+  background: rgba(237,230,214,.06); color: var(--cream);
+  border: 1.5px solid rgba(237,230,214,.2); border-radius: 2px;
+  padding: .8rem .9rem; width: 100%;
+}
+
+/* The dropdown list is drawn by the OS, not by the page: it does NOT inherit
+   the select's background, but it DOES inherit its colour. Cream text on the
+   system's white popup is invisible — which is exactly what happened.
+   `color-scheme` tells the browser to render its own chrome dark (this is what
+   Safari and Firefox honour), and the explicit option colours cover Chrome on
+   Windows, which ignores color-scheme for option rows. Both are needed. */
+.form select { color-scheme: dark; }
+.form select option {
+  background-color: #1A1E15;
+  color: #EDE6D6;
+}
+/* placeholders: the browser default is a low-contrast grey against this ink */
+.form input::placeholder, .form textarea::placeholder {
+  color: rgba(237,230,214,.42); opacity: 1;
+}
+.form input:focus, .form textarea:focus, .form select:focus { outline: 2px solid var(--gold); outline-offset: 1px; border-color: transparent; }
+.form textarea { min-height: 108px; resize: vertical; }
+.form__hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+.form__fine { font-family: var(--mono); font-size: .7rem; color: var(--taupe); line-height: 1.7; margin: 0; }
+
+.map { margin-top: 2rem; border: 1.5px solid rgba(181,165,107,.22); }
+.map img { width: 100%; display: block; }
+
+/* ==========================================================================
+   FOOTER
+   ========================================================================== */
+.ftr { background: var(--ink-2); border-top: 1px solid rgba(181,165,107,.18); padding: 2.6rem 0 2rem; }
+.ftr__in { display: flex; flex-wrap: wrap; gap: 1.2rem 2rem; align-items: center; }
+.ftr__soc { display: flex; gap: .7rem; margin-left: auto; }
+.ftr__soc a {
+  width: 40px; height: 40px; border-radius: 999px; display: grid; place-items: center;
+  border: 1.5px solid rgba(237,230,214,.24); color: var(--cream); text-decoration: none;
+}
+.ftr__soc a:hover { background: var(--gold); border-color: var(--gold); color: var(--ink); }
+.ftr__soc svg { width: 18px; height: 18px; }
+.ftr small { font-family: var(--mono); font-size: .72rem; color: var(--taupe); letter-spacing: .04em; }
+.ftr a.ftr__link { color: var(--taupe); text-decoration: none; font-family: var(--mono); font-size: .72rem; }
+.ftr a.ftr__link:hover { color: var(--gold); }
+
+/* ==========================================================================
+   reveal — opacity/translateY only. Never clip-path: inset(100%): a fully
+   clipped element reports zero intersection and the observer never fires.
+   translateY (not X) so an off-screen start state can't widen the document.
+
+   Default state is VISIBLE, and app.js opts in by putting `reveal-ready` on
+   <html> immediately before it wires the observer. `.js` is set in <head> for
+   the film, so a `.no-js` fallback can no longer protect these — if app.js
+   404s or throws, this way the content is simply there instead of a page of
+   opacity:0 blocks.
+   ========================================================================== */
+.reveal { opacity: 1; transform: none; }
+html.reveal-ready .reveal {
+  opacity: 0; transform: translateY(18px);
+  transition: opacity .7s ease, transform .7s cubic-bezier(.2,.7,.3,1);
+}
+html.reveal-ready .reveal.is-in { opacity: 1; transform: none; }
+@media (prefers-reduced-motion: reduce) {
+  html.reveal-ready .reveal { opacity: 1; transform: none; }
+}
+
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+.skip {
+  position: absolute; left: -9999px; top: 0; z-index: 200;
+  background: var(--gold); color: var(--ink); padding: .7rem 1.1rem;
+  font-family: var(--mono); font-size: .8rem;
+}
+.skip:focus { left: .5rem; top: .5rem; }
+
+/* The UA's `[hidden] { display: none }` is a plain rule with no !important, so
+   ANY author `display` on the same element beats it — `.modal { display: grid }`
+   over `<div class="modal" hidden>` is exactly that shape, and it paints the
+   dialog over the page. This file already dodges it by hand
+   (`.modal[hidden] { display:none }`, `.svc__panel[hidden]`), which is one
+   rule per offender and one to forget. */
+[hidden] { display: none !important; }
+
+/* ==========================================================================
+   THANK-YOU / 404 shells — shared by thank-you.html, paldies.html and the two
+   review variants, which is why they live here rather than in a <style> block
+   copied into each template.
+   ========================================================================== */
+.ty { min-height: 100svh; display: grid; place-content: center; text-align: center; padding: 2rem 0; position: relative; }
+.ty::before {
+  content: ""; position: absolute; inset: 0;
+  background: radial-gradient(60% 55% at 50% 25%, rgba(36,48,27,.9), transparent 70%);
+  pointer-events: none;
+}
+.ty__in { position: relative; max-width: 62ch; margin-inline: auto; }
+.ty__logo { display: block; width: fit-content; margin: 0 auto 2.4rem; color: var(--brand); }
+.ty__mark { display: block; width: clamp(168px, 26vw, 230px); height: auto; }
+.ty__cta { display: flex; flex-wrap: wrap; gap: .8rem; justify-content: center; margin-top: 2.4rem; }
+.ty__meta {
+  margin-top: 2.8rem; padding-top: 1.6rem; border-top: 1px solid rgba(181,165,107,.22);
+  display: flex; flex-wrap: wrap; gap: 1rem 2.2rem; justify-content: center;
+  font-family: var(--mono); font-size: .82rem; color: var(--taupe);
+}
+.ty__meta a { color: var(--cream); text-decoration: none; }
+.ty__meta a:hover { color: var(--gold); }
+
+/* ==========================================================================
+   REVIEWS PAGE
+   ========================================================================== */
+.rvhero {
+  background: var(--ink); position: relative;
+  padding: clamp(7rem, 14vw, 11rem) 0 clamp(3.5rem, 7vw, 5.5rem);
+}
+.rvhero__in { max-width: 62ch; }
+.rvhero__cta { display: flex; flex-wrap: wrap; gap: .8rem; margin-top: 1.6rem; }
+
+/* ---------- the Google score block ----------
+   Baseline-aligned by hand rather than with `align-items: baseline`: the big
+   numeral, the star row and the count are three different font sizes in three
+   different families, and letting flexbox align their baselines drags the star
+   row up off the numeral's optical centre. */
+.gscore {
+  display: flex; align-items: center; gap: clamp(.7rem, 1.6vw, 1.1rem);
+  margin-top: 2rem; padding: 1rem 1.25rem;
+  width: fit-content; max-width: 100%;
+  border: 1.5px solid rgba(181,165,107,.3); border-radius: 16px;
+  background: rgba(237,230,214,.045);
+}
+.gscore__g { width: 26px; height: 26px; flex: none; }
+.gscore__num {
+  margin: 0; font-family: var(--display); font-variation-settings: var(--wonk-off);
+  font-weight: 500; font-size: clamp(2rem, 5vw, 2.5rem); line-height: .9;
+  color: var(--cream); letter-spacing: -.01em;
+}
+.gscore__of { display: grid; gap: .35rem; }
+/* On --ink the empty-star colour from the light review cards is invisible, and
+   the filled --rust goes muddy. The dark ground gets its own pair. */
+.gscore .stars__out { font-size: 1.05rem; }
+.gscore .star { color: rgba(237,230,214,.22); }
+.gscore .star--on { color: var(--gold); }
+.gscore__count {
+  margin: 0; font-family: var(--mono); font-size: .74rem;
+  letter-spacing: .05em; color: #A9A395;
+}
+@media (max-width: 420px) {
+  .gscore { gap: .6rem; padding: .85rem 1rem; }
+  .gscore__num { font-size: 1.8rem; }
+}
+
+/* ---------- the published reviews ---------- */
+.rvlist { background: var(--paper); color: var(--ink); }
+.rvlist .eyebrow { color: var(--rust); }
+/* Masonry-ish without masonry: reviews are wildly different lengths, and equal
+   grid rows would leave a two-line review sitting in a box sized for a ten-line
+   one. Columns let each card be its own height. */
+.rvgrid { columns: 3 260px; column-gap: clamp(1.1rem, 2.4vw, 1.8rem); }
+.rvcard {
+  break-inside: avoid; margin: 0 0 clamp(1.1rem, 2.4vw, 1.8rem);
+  padding: clamp(1.2rem, 2.6vw, 1.7rem);
+  background: rgba(18,20,14,.035);
+  border: 1.5px solid rgba(18,20,14,.14);
+  border-radius: clamp(14px, 2.2vw, 22px);
+}
+.rvcard__top { display: flex; align-items: baseline; gap: 1rem; margin-bottom: .9rem; }
+.stars__out { letter-spacing: .12em; font-size: .95rem; line-height: 1; }
+.star { color: rgba(18,20,14,.22); }
+.star--on { color: var(--rust); }
+.rvcard__date { margin-left: auto; font-family: var(--mono); font-size: .72rem; color: #77705F; }
+.rvcard__body p { margin: 0 0 .7rem; font-size: .97rem; line-height: 1.62; color: #3E3A2F; }
+.rvcard__body p:last-child { margin-bottom: 0; }
+.rvcard__who {
+  margin: 1.1rem 0 0; padding-top: .9rem;
+  border-top: 1px solid rgba(18,20,14,.13);
+  display: flex; flex-wrap: wrap; gap: .2rem .8rem; align-items: baseline;
+}
+.rvcard__who b { font-family: var(--display); font-variation-settings: var(--wonk-off); font-weight: 500; font-size: 1.04rem; }
+
+/* ---------- the Google wall's "show more" ----------
+   A <details>, not a JS toggle: the remaining cards are in the HTML either way,
+   and with the script gone they still open. */
+.gwall .rvgrid + .gmore { margin-top: -.4rem; }
+.gmore { border: 0; }
+.gmore__btn {
+  display: inline-flex; align-items: center; gap: .5rem; cursor: pointer;
+  font-family: var(--mono); font-size: .74rem; letter-spacing: .14em;
+  text-transform: uppercase; color: var(--rust-dp);
+  padding: .85rem 1.4rem; border: 1.5px solid rgba(18,20,14,.2); border-radius: 999px;
+  transition: border-color .16s ease, background .16s ease, color .16s ease;
+  /* the default marker sits outside the pill and cannot be styled in Safari */
+  list-style: none;
+}
+.gmore__btn::-webkit-details-marker { display: none; }
+.gmore__btn:hover { border-color: var(--ink); color: var(--ink); background: rgba(18,20,14,.04); }
+.gmore__btn:focus-visible { outline: 2px solid var(--rust); outline-offset: 3px; }
+.gmore__btn span { transition: transform .18s ease; }
+.gmore[open] > .gmore__btn { margin-bottom: clamp(1.1rem, 2.4vw, 1.8rem); }
+.gmore[open] > .gmore__btn span { transform: rotate(180deg); }
+
+/* iOS Safari zooms the whole page when a form control under 16px takes focus,
+   mid-form, and the visitor has to pinch back out. `.form` already sets 1rem;
+   this covers the front page's callback form at every width for certainty. */
+@media (max-width: 900px) {
+  .form input, .form textarea, .form select { font-size: 16px; }
+}
+
+/* ==========================================================================
+   grain layer — must be the LAST rule that touches background-image.
+   Each of these surfaces sets `background: <colour>` as a shorthand, which
+   resets background-image to none; declaring the tile afterwards re-applies
+   it without disturbing the colours.
+   ========================================================================== */
+body,
+.sky,
+.svc,
+.work,
+.about,
+.team,
+.book,
+.contact,
+.rvhero,
+.rvlist,
+.ftr,
+.book__card,
+.team__photo,
+.modal__box {
+  background-image: url('../img/grain.png');
+  background-repeat: repeat;
+  background-size: 128px 128px;
+}

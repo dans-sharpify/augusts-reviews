@@ -1,0 +1,29 @@
+# Normalise every text file to LF *in the repository*.
+#
+# THIS IS LOAD-BEARING, NOT TIDINESS. The pages are generated, and they are
+# generated on two different platforms: by hand on Windows, where Python's
+# `write_text` emits CRLF, and by the weekly GitHub Action on ubuntu-latest, where
+# it emits LF. Without this file the repo stores whatever the last writer used, so
+# the Action's "did anything actually change?" check —
+#
+#     git diff --quiet -- build/google-reviews.json site/
+#
+# — sees all 54 files in site/ as modified on EVERY run, purely from line endings.
+# It would then commit and deploy a "refresh Google reviews" every week whether or
+# not a single review changed, and a real change would be invisible in a diff that
+# rewrites every line of every page.
+#
+# `text=auto` normalises on commit and un-normalises on checkout, so Windows still
+# gets CRLF in the working tree and `git status` stays clean on both platforms.
+# Verified: the staged blobs contain no CR bytes.
+* text=auto
+
+# Binary, so git must never touch these. `text=auto` does detect binary content on
+# its own, but a webp or a woff2 that got line-ending translation applied to it is
+# corrupt in a way that only shows up in a browser, so it is worth being explicit.
+*.webp   binary
+*.png    binary
+*.ico    binary
+*.woff2  binary
+*.pdf    binary
+*.heic   binary

@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="{{LANG}}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>document.documentElement.className='js';</script>
+<title>Atsauksmes — AUGUSTS /08/ frizierdarbnīca, Miera iela 19</title>
+<meta name="description" content="Klientu atsauksmes par AUGUSTS /08/ frizierdarbnīcu Miera ielā 19, Rīgā — 4,9 zvaigznes Google. Izlasi, ko saka klienti, un atstāj savu atsauksmi Google.">
+<link rel="canonical" href="{{CANONICAL}}">
+<link rel="alternate" hreflang="en" href="https://augusts08.lv/reviews.html">
+<link rel="alternate" hreflang="lv" href="https://augusts08.lv/atsauksmes.html">
+<link rel="alternate" hreflang="x-default" href="https://augusts08.lv/reviews.html">
+<meta name="theme-color" content="#12140E">
+
+<meta property="og:type" content="website">
+<meta property="og:locale" content="{{OG_LOCALE}}">
+<meta property="og:site_name" content="AUGUSTS /08/">
+<meta property="og:url" content="{{CANONICAL}}">
+<meta property="og:title" content="Atsauksmes — AUGUSTS /08/">
+<meta property="og:description" content="Ko klienti saka par AUGUSTS /08/ — 4,9 no 5 Google atsauksmēs.">
+<meta property="og:image" content="https://augusts08.lv/assets/img/hero-rudens.webp">
+<meta name="twitter:card" content="summary_large_image">
+
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="icon" href="icon-32.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="icon-180.png">
+
+<link rel="preload" href="assets/fonts/fraunces.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="assets/fonts/worksans.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body>
+<a class="skip" href="#google-atsauksmes">Pāriet uz atsauksmēm</a>
+
+<!--@include icons-->
+<!--@include logo-->
+
+<!--@include header-->
+
+<main id="main">
+
+<!-- ===================== HERO =====================
+     The score block and the two buttons are rendered by build/google_reviews.py
+     out of build/google-reviews.json, so the number in the block and the link
+     under the button can never disagree — both come from the same fetch.
+
+     Deliberately NOT here: Review / AggregateRating structured data. Google's
+     own guidelines forbid a site marking up reviews of ITSELF ("self-serving
+     reviews"), and it earns a manual action rather than stars in the SERP. The
+     4.9 is shown to the visitor and left unmarked for the crawler. -->
+<section class="rvhero">
+  <div class="wrap rvhero__in">
+    <p class="eyebrow">Atsauksmes</p>
+    <h1 class="h-lg">Pastāsti, kā gāja</h1>
+    <p class="lead" style="margin-top:1.1rem">
+      Mēs strādājam pa vienam klientam un bez steigas, tāpēc katra atsauksme
+      mums tiešām kaut ko pasaka. Zemāk ir viss, ko klienti raksta mūsu Google
+      profilā. Ja arī tev ir ko teikt — tas aizņem divas minūtes.
+    </p>
+{{GOOGLE_SCORE}}
+    <div class="rvhero__cta">
+{{GOOGLE_CTA}}
+    </div>
+  </div>
+</section>
+
+<!-- ===================== GOOGLE REVIEWS =====================
+     The salon's real Google reviews, baked in at build time. Refreshed by
+     `python build/fetch-google-reviews.py` — see that file for the two sources
+     and README "Google reviews" for the schedule. Empty file, no section. -->
+{{GOOGLE_REVIEWS}}
+
+</main>
+
+<!--@include footer-->
+
+<script src="assets/js/app.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,92 @@
+# Weekly: ask Google whether AUGUSTS has new reviews, and commit them.
+#
+# WHY THIS IS BETTER THAN THE NETLIFY SCHEDULED FUNCTION
+# Both trigger a deploy on a schedule. The difference is where the result lives.
+# The Netlify function fires a build hook, so the fetch runs in a container that
+# is then thrown away — and Places API only ever returns the newest ~5 reviews,
+# so a review that scrolls out of that window and was never committed is gone
+# from the site. This job commits `build/google-reviews.json`, so the archive is
+# permanent and only ever grows. Netlify's continuous deployment then picks up
+# the push on its own.
+#
+# If you use this, turn the Netlify one off: delete the
+# [functions."refresh-reviews"] schedule block from output/augusts/netlify.toml.
+# Running both is harmless but does the same work twice.
+#
+# SETUP
+#   1. Settings -> Secrets and variables -> Actions -> New repository secret
+#      GOOGLE_MAPS_API_KEY = a Maps Platform key with Places API (New) enabled
+#   2. Settings -> Actions -> General -> Workflow permissions
+#      -> "Read and write permissions"  (this job pushes a commit)
+#   3. Connect the repo to Netlify (see README "Google reviews").
+#
+# With no secret set the fetch prints a warning and exits 0, so this job stays
+# green and simply commits nothing. That is the correct behaviour for "not set up
+# yet" — it must not look like a failure.
+
+name: AUGUSTS — refresh Google reviews
+
+on:
+  schedule:
+    # Monday 04:20 UTC. GitHub's cron queue can run late under load; for a weekly
+    # review refresh that is irrelevant.
+    - cron: "20 4 * * 1"
+  # so it can be run by hand the moment the API key is added, without waiting a week
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  # two overlapping runs would race on the same commit
+  group: augusts-google-reviews
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    env:
+      # Where the site lives inside this repo. This IS the repo root now — the
+      # site was split into its own repository so Netlify only gets read access to
+      # this one client, instead of every project in the ad-generator tree.
+      PROJECT: .
+      GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          # assemble.py uses dict `|=` (3.9+). No pip install anywhere in this
+          # job: fetch-google-reviews.py is stdlib-only on purpose.
+          python-version: "3.11"
+
+      - name: Fetch the current Google reviews
+        working-directory: ${{ env.PROJECT }}
+        run: python build/fetch-google-reviews.py
+
+      - name: Re-render the pages
+        working-directory: ${{ env.PROJECT }}
+        # assemble.py exits non-zero on any of its assertions, so a bad render
+        # fails the job instead of committing a broken page.
+        run: python build/assemble.py
+
+      - name: Check the deploy gate
+        working-directory: ${{ env.PROJECT }}
+        run: python build/check-deploy.py
+
+      - name: Commit, if anything actually changed
+        working-directory: ${{ env.PROJECT }}
+        run: |
+          if git diff --quiet -- build/google-reviews.json site/; then
+            echo "No new reviews — nothing to commit."
+            exit 0
+          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add build/google-reviews.json site/
+          n=$(python -c "import json;print(len(json.load(open('build/google-reviews.json',encoding='utf-8'))['reviews']))")
+          git commit -m "AUGUSTS: refresh Google reviews ($n on file)"
+          # Rebase rather than force: this branch is shared with humans.
+          git pull --rebase --autostash
+          git push

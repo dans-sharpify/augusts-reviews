@@ -1,0 +1,77 @@
+# Only site/ ships. The harvest/build notes stay out of the deploy.
+#
+# THE GOOGLE REVIEWS REFRESH LIVES IN GITHUB ACTIONS, NOT HERE.
+# `.github/workflows/augusts-google-reviews.yml` at the repo root runs the fetch
+# on a weekly cron and COMMITS the result, which is the whole reason to prefer it:
+# Places API only returns the newest ~5 reviews with no pagination, so a refresh
+# whose output is thrown away with the build container loses every review that
+# scrolls out of that window. Committing the archive means it can only grow.
+# Netlify's continuous deployment then picks up the push and deploys.
+#
+# There used to be a `[functions."refresh-reviews"]` scheduled function here that
+# pinged a build hook instead. It worked, but it was the throwaway-container
+# version, and running both did the same job twice. Deleted deliberately — do not
+# add it back without deleting the workflow.
+#
+# The build command below still re-renders on every deploy, and still calls the
+# fetch first:
+#   fetch-google-reviews.py  tops the archive up on any manual deploy too. With no
+#                            GOOGLE_MAPS_API_KEY set it prints a warning and exits
+#                            0, leaving the committed archive alone — so this is
+#                            safe before the key exists. The merge only ever ADDS.
+#   assemble.py              regenerates the nine pages and fails the build
+#                            (non-zero) if anything is off, which keeps the
+#                            previous deploy live rather than shipping a broken
+#                            page.
+[build]
+  publish = "site"
+  command = "python3 build/fetch-google-reviews.py && python3 build/assemble.py"
+
+[build.environment]
+  # assemble.py uses dict `|=`, which is 3.9+. Pinning beats discovering the
+  # image default changed underneath us.
+  PYTHON_VERSION = "3.11"
+
+# Fonts are content-stable (subset once, never re-emitted) — cache hard.
+[[headers]]
+  for = "/assets/fonts/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# `must-revalidate` does NOT mean "check every time" — that is the trap this file
+# used to fall into. It only forbids serving a response once it has gone STALE;
+# inside max-age the response is fresh and the browser uses it without asking. So
+# `max-age=604800, must-revalidate` was seven days of blind caching.
+#
+# The HTML is always revalidated, so a deploy that changes a stylesheet shipped
+# NEW markup against a WEEK-OLD stylesheet to every returning visitor — and this
+# page fails hard that way, not gracefully: the header language switch loses its
+# pill, the logo's ring drops out of position and the hero mark's rings fall below
+# the wordmark instead of around it, because those selectors only exist in the new
+# CSS. Filenames here are stable (so a photo can be swapped in place), which means
+# the freshness has to come from the header.
+[[headers]]
+  for = "/assets/css/*"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/assets/js/*"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+# Images: an hour of staleness is harmless for a photo and keeps 24 images from
+# revalidating on every visit. Long enough to help, short enough that swapping a
+# team portrait in place is visible the same morning.
+[[headers]]
+  for = "/assets/img/*"
+  [headers.values]
+    Cache-Control = "public, max-age=3600, must-revalidate"
+
+[[headers]]
+  for = "/*.html"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    X-Frame-Options = "SAMEORIGIN"

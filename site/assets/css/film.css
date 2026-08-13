@@ -1,0 +1,536 @@
+/* ==========================================================================
+   AUGUSTS — the scroll-film
+   One continuous shot: MEŽS → OGAS → KRĀSA → IELA 19 → SPOGULIS → DRAUGS.
+
+   Architecture: every stage is `position: sticky` and the engine only ever
+   *scrubs* — nothing is pinned. Sticky stages sit in normal flow, so their
+   offsets never move when another effect is created or the page reflows, which
+   removes the whole pin-spacer ordering / cached-offset class of bug.
+
+   The engine writes ONLY transform and opacity. Anything that would repaint a
+   large surface every frame (blend modes, backdrop-filter, clip-path, big
+   blurs, scaled SVG strokes) is deliberately absent.
+   ========================================================================== */
+
+.film {
+  position: relative;
+  /* height is set by the engine: (100 + (n-1)*92)vh — data-driven, not magic */
+  background: var(--ink);
+}
+
+.film__stage {
+  position: sticky;
+  top: 0;
+  height: 100svh;
+  overflow: hidden;
+  /* the stage is a stacking + containment root so the layers inside it can
+     never invalidate layout outside it */
+  contain: layout paint;
+}
+
+/* ---------- the sky: ONE surface, engine interpolates its colour ---------- */
+.sky {
+  position: absolute; inset: 0;
+  background: #10170F;
+  will-change: background-color;
+}
+/* Static vignette — rasterised once, never animated. */
+.sky::after {
+  content: "";
+  position: absolute; inset: 0;
+  background: radial-gradient(120% 90% at 50% 42%, transparent 38%, rgba(6,8,5,.62) 100%);
+  pointer-events: none;
+}
+
+/* ---------- birch forest (chapters 1–2) ---------------------------------- */
+.forest {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  opacity: 0;
+  will-change: transform, opacity;
+}
+.forest--near { z-index: 3; }
+.forest--far  { z-index: 1; }
+
+/* ---------- photographed forest (the drop-in) ----------------------------
+   `assemble.py` emits these two layers instead of the drawn birch SVG as soon
+   as `site/assets/img/mezs-fons.webp` exists — see "The film's forest" in the
+   README. Both layers are the SAME file: one download, and film.js already
+   scrubs `--near` and `--far` at different rates, so the parallax comes free.
+
+   `object-fit: cover` and nothing else — no filter, no blur, no blend mode. A
+   runtime blur over a full-viewport surface is precisely the total-surface
+   repaint this film was rebuilt to avoid (it cost ~16ms of p95 on its own when
+   the grain was a fixed overlay). Whatever grade the photograph needs, bake it
+   into the file. */
+.forest--photo img {
+  width: 100%; height: 100%; object-fit: cover;
+  object-position: 50% 42%;
+}
+/* the near layer is the same frame pushed in, which is what reads as depth once
+   the two start moving at different rates */
+.forest--photoNear img { transform: scale(1.22); object-position: 50% 55%; }
+/* Nothing on the opening frame is legible over a bright photograph without it.
+   A static gradient on its own element, rasterised once — the sky's own
+   `::after` vignette sits on a layer the engine recolours every frame.
+
+   The mid stop is .42 and not the .34 it was under the drawn birch SVG: the
+   drawing was already near-black, the photograph is a bright fog. Measured
+   against the wordmark, not judged by eye. */
+.forest--photo::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(180deg, rgba(10,14,9,.62) 0%, rgba(10,14,9,.42) 45%, rgba(10,14,9,.7) 100%);
+  pointer-events: none;
+}
+/* A pool of shade for the wordmark, on the NEAR layer for two reasons.
+   Z-ORDER: `--near` is z-index 3 and `--far` is 1, so a scrim on the far layer
+   is painted UNDER the near layer's own bright trunks — the brightest bark in
+   the frame would sit on top of it un-darkened. `.beats` (the copy) is 7, so
+   this lands between them.
+   COUPLING: film.js drives this layer's opacity, so the pool arrives and leaves
+   with the forest instead of darkening the five chapters that follow.
+   Radial rather than a stronger flat scrim so the forest stays a bright misty
+   forest at the edges, which is the whole reason to use the photograph. */
+.forest--photoNear::after {
+  background: radial-gradient(54% 44% at 50% 48%,
+              rgba(10,14,9,.34) 0%, rgba(10,14,9,.24) 52%, rgba(10,14,9,0) 100%);
+}
+
+/* The address line under the mark is small gold mono, and it sits below the pool
+   where the photograph is at its brightest — measured at 2.8:1 against the fog,
+   where small text wants 4.5:1. Widening the pool far enough to cover it flattens
+   the whole frame, so this one line gets its own shade instead.
+
+   A text-shadow is safe HERE and would not be on a full-viewport surface: it is a
+   handful of glyphs, painted once, on an element nothing animates. The film's
+   no-filter rule is about total-surface repaints, not about ink.
+
+   Scoped to the photographed forest via a sibling combinator, so it costs
+   nothing when assemble.py emits the drawn SVG instead: `.forest--photo` and
+   `.beats` are both children of `.film__stage`. The film's other kickers sit on
+   flat --forest / --ink grounds and need nothing. */
+.forest--photo ~ .beats .beat--hero .kicker {
+  text-shadow: 0 1px 2px rgba(8,11,7,.92), 0 0 14px rgba(8,11,7,.75);
+}
+
+/* ---------- rowan berry particles (chapter 2) ---------------------------- */
+.berries {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  z-index: 4;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ---------- photographic plates ------------------------------------------ */
+.plates { position: absolute; inset: 0; z-index: 5; }
+
+.plate {
+  position: absolute;
+  left: 50%; top: 50%;
+  margin: 0;
+  opacity: 0;
+  /* the engine owns transform; the base translate is folded into it so a CSS
+     percentage translate can never fight a JS-written one */
+  will-change: transform, opacity;
+}
+.plate img {
+  display: block;
+  width: 100%; height: auto;
+  background: var(--ink-2);
+}
+.plate--framed {
+  background: var(--paper);
+  padding: 12px 12px 42px;
+  box-shadow: 0 26px 60px rgba(0,0,0,.5);
+}
+.plate--framed figcaption {
+  font-family: var(--mono); font-size: .62rem; letter-spacing: .12em;
+  text-transform: uppercase; color: #5C574A; text-align: center;
+  padding-top: 11px;
+}
+/* widths are viewport-relative so the 640px sources are never upscaled past
+   about 1.3x — full-bleed would turn them to mush */
+.plate--mezs   { width: min(30vw, 300px); }
+.plate--ogas   { width: min(36vw, 380px); }
+.plate--krasa  { width: min(28vw, 290px); }
+.plate--iekspuse { width: min(24vw, 250px); }
+.plate--draugs { width: min(34vw, 360px); }
+
+/* ---------- the door, Miera iela 19 (chapter 4) -------------------------- */
+.door {
+  position: absolute;
+  left: 50%; top: 50%;
+  width: min(46vw, 340px);
+  height: auto;
+  z-index: 5;
+  opacity: 0;
+  will-change: transform, opacity;
+}
+/* the warm light spilling out as it opens — a plain gradient, no blur filter */
+.doorlight {
+  position: absolute;
+  left: 50%; top: 50%;
+  width: min(52vw, 400px); height: min(70vh, 560px);
+  z-index: 4;
+  opacity: 0;
+  background: radial-gradient(50% 55% at 50% 55%, rgba(214,168,96,.55), transparent 72%);
+  will-change: transform, opacity;
+}
+
+/* ---------- the mirror (chapter 5) --------------------------------------- */
+.mirror {
+  position: absolute;
+  left: 50%; top: 50%;
+  width: min(34vw, 330px);
+  z-index: 5;
+  opacity: 0;
+  will-change: transform, opacity;
+}
+.mirror__glass {
+  position: relative;
+  border-radius: 50% 50% 48% 48% / 44% 44% 56% 56%;
+  overflow: hidden;
+  border: 2px solid rgba(181,165,107,.5);
+  box-shadow: 0 22px 60px rgba(0,0,0,.55);
+}
+.mirror__glass img { display: block; width: 100%; height: auto; }
+.mirror__stand {
+  width: 2px; height: 46px; margin: 0 auto;
+  background: rgba(181,165,107,.5);
+}
+.mirror__foot {
+  width: 84px; height: 2px; margin: 0 auto;
+  background: rgba(181,165,107,.5);
+}
+
+/* ---------- beats: the copy over the film -------------------------------- */
+.beats {
+  position: absolute; inset: 0; z-index: 7;
+  display: grid; place-items: center;
+  padding: clamp(1.1rem, 4vw, 3rem);
+  pointer-events: none;
+}
+.beat {
+  grid-area: 1 / 1;
+  width: min(var(--wrap), 100%);
+  /* `place-items: center` centres this while the stage is a grid; the static
+     fallback turns the stage into a column, where only auto margins will. */
+  margin-inline: auto;
+  opacity: 0;
+  will-change: transform, opacity;
+}
+.beat > * { pointer-events: auto; }
+/* Each beat's copy lives in its own column, capped to just under half the
+   stage. Plates and the drawn door/mirror occupy the other half, so text can
+   never end up sitting on top of a photograph at any viewport width — which
+   is exactly what happened when the copy was free to span the full wrap. */
+.beat__copy { max-width: min(46%, 33rem); }
+.beat--left   .beat__copy { margin-right: auto; text-align: left; }
+.beat--right  .beat__copy { margin-left: auto;  text-align: left; }
+.beat--center .beat__copy { max-width: 42rem; margin-inline: auto; text-align: center; }
+/* grid children must be allowed to shrink or a long word widens the track */
+.beat, .beat > * { min-width: 0; }
+
+.beat h1, .beat h2 {
+  font-size: clamp(2.3rem, 7.4vw, 5.4rem);
+  line-height: .98;
+  margin: 0;
+  text-wrap: balance;
+}
+.beat p {
+  font-size: clamp(1rem, .95rem + .45vw, 1.22rem);
+  color: #D6D0C0;
+  max-width: 44ch;
+  margin: 1.1rem 0 0;
+}
+.beat--center p { margin-inline: auto; }
+.beat .kicker {
+  font-family: var(--mono); font-size: .72rem; letter-spacing: .3em;
+  text-transform: uppercase; color: var(--gold);
+  margin: 0 0 1.2rem;
+  /* not subject to the 44ch measure that `.beat p` sets for body copy — with
+     .3em tracking a short label wraps well before it needs to */
+  max-width: none;
+}
+.beat em {
+  font-style: italic; color: var(--rust);
+  font-variation-settings: 'SOFT' 90, 'WONK' 1;
+}
+
+/* The finale lands on the paper the film melts into, so it is set in ink and
+   becomes the first thing you read on the price-list ground — the handoff is
+   a sentence, not a line. */
+.beat--finale h2 { color: var(--ink); }
+.beat--finale em { color: var(--rust-dp); }
+
+/* ---------- the brand mark: the salon's traced lockup inside two rings -------
+   This used to be three text elements set in Fraunces, with the enclosing square
+   sized as `--k` × the wordmark's font size — and `--k` had to STEP at 900px,
+   because Fraunces is variable with an optical-size axis and AUGUSTS gets
+   relatively wider as it shrinks (measured 5.05× its font size at 86px, 5.46× at
+   42px), so one multiplier left the word almost touching the inner ring on a
+   phone.
+
+   The lockup is now one traced SVG of the client's own artwork, which has a
+   FIXED aspect ratio, so all of that goes away: the square is a constant 1.30 ×
+   the logo's width and there is no breakpoint and no font metric anywhere in the
+   geometry. 1.30 puts the lockup's diagonal (1.07 × its width) just inside the
+   inner ring with the same air the old composition had. */
+.mark {
+  /* Three caps, and all three earn their place: the clamp is the type scale, the
+     74vw keeps the RING (1.3x this) inside a narrow screen, and the svh keeps the
+     whole square inside the film's stage — which is 100svh minus a sticky header,
+     so a width-only rule runs the ring off the bottom on a laptop. */
+  --lw: min(clamp(12.5rem, 30vw, 27rem), 74vw, 46svh);
+  position: relative;
+  width: calc(var(--lw) * 1.3);
+  max-width: 92vw;
+  aspect-ratio: 1;
+  margin: 0 auto;
+  display: grid;
+  place-items: center;
+  color: var(--brand);
+}
+/* `.wordmark` is the class film.js looks for and puts `is-in` on; it is now the
+   <h1> wrapping the logo rather than a row of letter spans. */
+.mark .wordmark { display: block; width: var(--lw); margin: 0; padding: 0; }
+.mark__logo { display: block; width: 100%; height: auto; }
+.mark__ring {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  /* the global `svg { max-width: 100% }` reset would clamp this to the grid's
+     content width rather than the square */
+  max-width: none;
+  pointer-events: none; overflow: visible;
+}
+
+/* The opening move: the seven letters of AUGUSTS rise into place, then /08/ and
+   FRIZIERDARBNĪCA fade up around them. It is a one-shot transition, not a
+   scrubbed tween — the opening composition must be complete on arrival, not
+   something you have to scroll to make happen.
+
+   Units here are viewBox units, not CSS pixels: a CSS transform on an SVG child
+   resolves in the element's own coordinate system. `transform-box: view-box` is
+   set explicitly because Safari defaulted to the border box for years, and with
+   the border box a percentage or a shared origin means each letter moves by a
+   different amount. 12 units is one cap height of this lockup. */
+.lg__l, .lg__no, .lg__sub {
+  transform-box: view-box; transform-origin: 0 0;
+  transition: transform 1.05s cubic-bezier(.16,.9,.24,1), opacity .8s ease;
+}
+html.js .wordmark:not(.is-in) .lg__l { transform: translateY(12px); opacity: 0; }
+html.js .wordmark:not(.is-in) .lg__no,
+html.js .wordmark:not(.is-in) .lg__sub { opacity: 0; }
+.lg__l { transition-delay: calc(var(--i) * .05s + .02s); }
+.lg__no { transition-delay: .42s; }
+.lg__sub { transition-delay: .5s; }
+/* The ring arrives on opacity and transform, not as a stroke-dash "draw-on".
+   Two reasons, one of them measured the hard way:
+
+   `vector-effect: non-scaling-stroke` resolves the dash pattern in DEVICE space,
+   not user units — so a dasharray sized to the 309-unit circumference tiled ~2.5
+   times around the 1589px rendered circle and the finished ring had two gaps in
+   it. Any fixed dasharray is wrong at some viewport width, since the rendered
+   circumference moves with the clamp. And per this file's own rule, the film
+   writes only transform and opacity; scaled SVG strokes are exactly what it
+   avoids. Keeping non-scaling-stroke is what holds the line to an even hairline
+   at every size, which for a logo matters more than the flourish. */
+.mark__ring {
+  opacity: 1; transform: none;
+  transition: opacity 1.15s ease .3s,
+              transform 1.35s cubic-bezier(.32,.72,.3,1) .3s;
+}
+/* Armed only under `.js`, and only for the element the script will un-arm — if
+   film.js never runs, the circle is simply already there. A sibling combinator
+   deliberately, not `:has()`: where `:has()` is unsupported the whole rule is
+   dropped and the ring would stay invisible forever. */
+html.js .mark__ring { opacity: 0; transform: scale(.94); }
+html.js .wordmark.is-in ~ .mark__ring { opacity: 1; transform: none; }
+@media (prefers-reduced-motion: reduce) {
+  html.js .mark__ring { opacity: 1; transform: none; transition: none; }
+}
+
+
+/* ---------- HUD: chapter readout ----------------------------------------- */
+.hud {
+  position: absolute; z-index: 8;
+  left: clamp(1.1rem, 4vw, 3rem);
+  bottom: clamp(1.1rem, 3.4vw, 2.2rem);
+  display: flex; align-items: center; gap: .85rem;
+  font-family: var(--mono); font-size: .68rem;
+  letter-spacing: .22em; text-transform: uppercase;
+  color: var(--cream);
+  pointer-events: none;
+  transition: color .4s ease;
+}
+.hud__bar {
+  width: clamp(70px, 12vw, 130px); height: 1px;
+  background: currentColor; opacity: .3; position: relative;
+}
+.hud__fill {
+  position: absolute; left: 0; top: 0; height: 100%; width: 100%;
+  background: currentColor;
+  transform: scaleX(0); transform-origin: 0 50%;
+  will-change: transform;
+}
+.hud__n { opacity: .55; }
+/* over the pale final frames the chrome has to flip */
+.film--light .hud { color: var(--ink); }
+
+.scrollcue {
+  position: absolute; z-index: 8;
+  right: clamp(1.1rem, 4vw, 3rem);
+  bottom: clamp(1.1rem, 3.4vw, 2.2rem);
+  font-family: var(--mono); font-size: .64rem;
+  letter-spacing: .24em; text-transform: uppercase;
+  color: var(--cream); opacity: .5;
+  display: flex; align-items: center; gap: .6rem;
+  pointer-events: none;
+}
+.scrollcue i {
+  display: block; width: 1px; height: 26px;
+  background: currentColor;
+  transform-origin: 50% 0;
+  animation: cue 2s ease-in-out infinite;
+}
+@keyframes cue { 0%,100% { transform: scaleY(.25); } 50% { transform: scaleY(1); } }
+.film--light .scrollcue { color: var(--ink); }
+
+/* ---------- the seam: film → price list, no visible line ------------------ */
+.seam {
+  position: absolute; inset: auto 0 0 0; height: 42vh; z-index: 6;
+  background: linear-gradient(to bottom, transparent, var(--paper) 82%);
+  opacity: 0;
+  pointer-events: none;
+  will-change: opacity;
+}
+
+/* ==========================================================================
+   Fallbacks. If JS never runs, or the visitor asked for less motion, the film
+   must still be a finished-looking hero rather than a 560vh column of
+   invisible layers.
+   ========================================================================== */
+html:not(.js) .film,
+.film--static { height: auto !important; }
+
+/* A column, not a grid. Every layer inside the stage is absolutely positioned
+   on top of the others by design, so unless they are returned to normal flow
+   the wordmark and the photograph render in the same place. */
+html:not(.js) .film__stage,
+.film--static .film__stage {
+  position: relative;
+  height: auto;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(4.5rem, 11vw, 8rem) var(--gut);
+  overflow: visible;
+}
+html:not(.js) .beats,  .film--static .beats,
+html:not(.js) .plates, .film--static .plates {
+  position: static; inset: auto;
+  display: block; width: 100%; padding: 0;
+}
+/* DOM order is plates → beats; the wordmark has to lead */
+html:not(.js) .beats,  .film--static .beats  { order: 1; }
+html:not(.js) .plates, .film--static .plates { order: 2; }
+html:not(.js) .berries,
+html:not(.js) .forest,
+html:not(.js) .door,
+html:not(.js) .doorlight,
+html:not(.js) .mirror,
+html:not(.js) .seam,
+html:not(.js) .scrollcue,
+.film--static .berries,
+.film--static .doorlight,
+.film--static .seam,
+.film--static .scrollcue { display: none; }
+
+/* only the opening beat survives the fallback — the rest of the story is told
+   by the content sections below */
+html:not(.js) .beat,
+.film--static .beat { display: none; }
+html:not(.js) .beat--hero,
+.film--static .beat--hero {
+  display: block; opacity: 1; position: relative;
+}
+/* The armed start state below is `html.js .wordmark:not(.is-in) .lg__l`, four
+   classes deep. Any rule that has to beat it needs at least that much weight —
+   a plain `.film--static .lg__l` is (0,2,0) and loses silently, which is the
+   whole class of bug this file keeps running into. So the static override
+   repeats the armed selector with `.film--static` in front of it. */
+html.js .film--static .wordmark:not(.is-in) .lg__l,
+html.js .film--static .wordmark:not(.is-in) .lg__no,
+html.js .film--static .wordmark:not(.is-in) .lg__sub {
+  transform: none; opacity: 1; transition: none;
+}
+/* the mark's rings arrive on the same `.is-in` the letters wait for, so the
+   static hero has to land them too */
+html:not(.js) .mark__ring,
+.film--static .mark__ring { opacity: 1; transform: none; transition: none; }
+
+html:not(.js) .plate,
+.film--static .plate { display: none; }
+html:not(.js) .plate--ogas,
+.film--static .plate--ogas {
+  display: block; opacity: 1; visibility: visible;
+  position: relative; left: auto; top: auto;
+  width: min(300px, 62vw);
+  margin: clamp(2.4rem, 5vw, 3.6rem) auto 0;
+  transform: rotate(-1.6deg);
+}
+/* the mobile rule that hides the opening plate must not win here — in the
+   fallback this photograph is the only image the hero has */
+@media (max-width: 760px) {
+  html:not(.js) .plate--ogas,
+  .film--static .plate--ogas { display: block; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scrollcue i { animation: none; transform: scaleY(.6); }
+  /* same weight as the armed rule — a media query adds none of its own */
+  html.js .wordmark:not(.is-in) .lg__l,
+  html.js .wordmark:not(.is-in) .lg__no,
+  html.js .wordmark:not(.is-in) .lg__sub { transition: none; transform: none; opacity: 1; }
+}
+
+/* ---------- mobile -------------------------------------------------------
+   The film re-stages rather than shrinks: imagery to the upper half, copy to
+   the lower. Side-by-side is impossible at 390px, and overlapping the two
+   makes both unreadable. */
+@media (max-width: 760px) {
+  .beats { place-items: end center; padding-bottom: 13vh; }
+  .beat__copy,
+  .beat--left .beat__copy,
+  .beat--right .beat__copy,
+  .beat--center .beat__copy { max-width: none; margin: 0; text-align: left; }
+  .beat--center .beat__copy { text-align: center; }
+
+  .beat h1, .beat h2 { font-size: clamp(2.1rem, 8.6vw, 3.1rem); }
+  .beat p            { font-size: .98rem; }
+
+  /* the opening is the forest and the wordmark — a plate on top of the
+     wordmark is the one thing this screen has no room for */
+  .plate--mezs     { display: none; }
+  .plate--ogas     { width: 58vw; }
+  .plate--krasa    { width: 54vw; }
+  .plate--iekspuse { display: none; }
+  .plate--draugs   { width: 62vw; }
+  .door            { width: 46vw; }
+  .doorlight       { width: 62vw; }
+  .mirror          { width: 52vw; }
+
+  .hud       { font-size: .6rem; letter-spacing: .16em; }
+  .scrollcue { display: none; }
+}
+
+/* the hero wordmark is the one beat that is centred at every width */
+.beat--hero .beat__copy { max-width: 42rem; margin-inline: auto; text-align: center; }
+@media (max-width: 760px) {
+  .beats { place-items: end center; }
+  .beat--hero { align-self: center; }
+  .beat--hero .beat__copy { text-align: center; }
+}

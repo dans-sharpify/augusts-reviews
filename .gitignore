@@ -1,0 +1,29 @@
+# QA evidence: 204 screenshots, 82 MB — 90% of this folder by size and 70% by
+# file count. It is all regenerable from the harnesses, none of it is deployed,
+# and in a repo it would make every clone slow forever to no benefit. The README's
+# "QA" section describes what was asserted; the images stay local.
+# Delete this line if you ever want the trail in version control.
+_qa/
+
+# Python bytecode from the build scripts.
+__pycache__/
+*.py[cod]
+
+# Local previews / harness leftovers. `check-deploy.py` fails the build if any of
+# these end up in site/, but they should not reach git either.
+cdp-profile/
+*.log
+*.orig
+*.bak
+.DS_Store
+Thumbs.db
+
+# NOT ignored, on purpose:
+#   site/        — this is the deployable. Netlify publishes it, and the GitHub
+#                  Action commits regenerated pages into it. Ignoring it would
+#                  deploy an empty site.
+#   build/raw/   — the ungraded generated forest frames (~6 MB). They are the only
+#                  copy: re-running the generator is a fresh dice throw and the
+#                  old frame is gone. Cheap insurance.
+#   build/google-reviews.json — the review archive. Committing it is the whole
+#                  reason the refresh runs in Actions rather than on a build hook.

@@ -1,0 +1,42 @@
+<!-- Shared by index.template.html and reviews.template.html — a second hand-kept
+     copy is how a nav item ends up on one page and not the other.
+
+     `{{HOME}}` is "" on the front page and "index.html" / "lv.html" on a
+     sub-page, so the section links are in-page anchors where the sections exist
+     and cross-page links where they do not. -->
+<header class="hdr" id="hdr">
+  <div class="wrap hdr__in">
+    <!-- The salon's OWN artwork, traced out of the print PDF they sent
+         (build/gen-logo.py -> build/logo.svg). What stood here before was the
+         wordmark rebuilt in the page's display face, Fraunces — a wonky serif,
+         where the real mark is a wide geometric sans. Both sizes below are the
+         same traced lockup; the swap is a legibility floor, not a redesign:
+         FRIZIERDARBNĪCA is 4.1% of the lockup's width in height, so under about
+         120px of logo it stops being type and becomes a smudge. There the
+         wordmark alone carries it.
+
+         The viewBox on each <svg> is "0 0 <symbol width> <symbol height>", NOT a
+         copy of the symbol's own box. A <use> puts its shadow tree at origin
+         (0,0) whatever the viewBox says, so a non-zero min-y draws the artwork
+         clean out of the window — which is how the wordmark-only lockup shipped
+         as a correctly sized, correctly coloured, empty rectangle. assemble.py
+         asserts the relationship; the numbers come from build/gen-logo.py. -->
+    <a class="hdr__logo" href="{{HOME_LINK}}" aria-label="AUGUSTS /08/ — sākums">
+      <svg class="hdr__lg hdr__lg--full" viewBox="0 0 92.95 34.98" aria-hidden="true"><use href="#lg-full"/></svg>
+      <svg class="hdr__lg hdr__lg--word" viewBox="0 0 92.95 12.27" aria-hidden="true"><use href="#lg-word"/></svg>
+    </a>
+
+    <nav class="nav" aria-label="Galvenā navigācija">
+      <span class="nav__links">
+        <a href="{{HOME}}#pakalpojumi">Pakalpojumi</a>
+        <a href="{{HOME}}#darbi">Darbi</a>
+        <a href="{{REVIEWS}}">Atsauksmes</a>
+        <a href="{{HOME}}#komanda">Komanda</a>
+        <a href="{{HOME}}#par-mums">Par mums</a>
+        <a href="{{HOME}}#kontakti">Kontakti</a>
+      </span>
+      {{LANGPILL}}
+      <a class="btn btn--hdr" href="{{HOME}}#pieraksts">Rezervēt</a>
+    </nav>
+  </div>
+</header>
