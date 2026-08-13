@@ -504,12 +504,59 @@ commits and no remote. It is inert; this inner repo is the real one.
    directory empty** (the repo root is the site), and it reads `netlify.toml` for
    the publish dir, build command and headers.
 3. Repo → *Settings → Secrets and variables → Actions* → add
-   **`GOOGLE_MAPS_API_KEY`** (a Maps Platform key with Places API (New) enabled,
-   restricted to that one API).
+   **`GOOGLE_MAPS_API_KEY`**. See "Getting the API key" below — the two things
+   that catch people are that Maps Platform requires a billing account even inside
+   the free tier, and that it must be **Places API (New)**, not the legacy Places
+   API.
 4. Repo → *Settings → Actions → General → Workflow permissions* → **Read and
    write** (the job pushes a commit).
 5. Run the workflow once by hand (*Actions → Run workflow*) instead of waiting a
    week.
+
+##### Getting the API key
+
+`console.cloud.google.com/project/_/google/maps-apis/credentials` →
+*Create credentials → API key*.
+
+- **A billing account is required**, even though this usage is free. Google ties
+  every Maps Platform key to one. The `reviews` field bills under *Place Details
+  Enterprise + Atmosphere*, which has **1,000 free calls a month**; a weekly
+  refresh is four, so the card is never charged for this. Set a budget alert
+  anyway, and if you want a hard stop rather than an alert:
+  *IAM & Admin → Quotas & System Limits*, filter for Places API, tick the
+  requests-per-day quota, **Edit → New value → Submit request**. A budget alert
+  only emails you; a quota override actually caps it.
+- **Enable "Places API (New)"**, not "Places API". They are two separate products
+  in the console and the legacy one will not answer
+  `places.googleapis.com/v1/places/…`, which is what the fetch calls.
+- **Restrict the key.** *API restrictions* → **Places API (New)** only.
+  *Application restrictions* → **None**: this key runs from a GitHub Actions
+  runner, whose IP changes every run, so an IP restriction would break it and a
+  referrer restriction is for browser keys. Its protection is that it is a repo
+  secret and API-restricted, never shipped to a client.
+
+**Test it before trusting it.** The key is only exercised once a week, so a bad one
+would sit silent for a long time. From this folder:
+
+```powershell
+$env:GOOGLE_MAPS_API_KEY = "AIza..."
+python build/fetch-google-reviews.py --dry-run
+```
+
+`--dry-run` makes the real request and writes nothing. What the answers look like:
+
+| output | meaning |
+|---|---|
+| `place: Frizierdarbnīca AUGUSTS — 4.9 from 83` | working |
+| `INVALID_ARGUMENT: API key not valid` | wrong key, or extra whitespace pasted |
+| `Places API (New) has not been used in project … or it is disabled` | you enabled the legacy Places API |
+| `PERMISSION_DENIED` | key restricted to the wrong API |
+| `GOOGLE_MAPS_API_KEY is not set` | the env var did not reach the process |
+
+Every one of those is a **warning, not a failure** — the fetch exits 0 and leaves
+the committed archive alone, so a bad key never breaks a build or a deploy. It just
+means the reviews stop moving, which is why `check-deploy.py` warns once the archive
+is 45 days old.
 
 ##### Line endings — `.gitattributes` is not cosmetic
 

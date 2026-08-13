@@ -303,10 +303,21 @@ def main():
     except (urllib.error.URLError, urllib.error.HTTPError, RuntimeError, ValueError) as e:
         detail = ""
         if isinstance(e, urllib.error.HTTPError):
+            # Pull Google's own `error.message` out rather than dumping the first
+            # 400 characters of the body: the useful sentence ("API key not valid",
+            # "Places API (New) has not been used in project N before or it is
+            # disabled") sits AFTER a wall of @type/domain/metadata boilerplate, so
+            # a naive truncation shows you everything except the reason.
+            body = ""
             try:
-                detail = " — " + e.read().decode("utf-8", "replace")[:400]
+                body = e.read().decode("utf-8", "replace")
+                err = json.loads(body).get("error", {})
+                if err.get("message"):
+                    detail = f" — {err.get('status', e.code)}: {err['message']}"
             except Exception:
                 pass
+            if not detail and body:
+                detail = " — " + body[:400]
         msg = f"could not refresh from {args.source}: {e}{detail}"
         # A build must not fail because Google had a bad minute. The committed
         # archive is a complete, valid dataset on its own.
