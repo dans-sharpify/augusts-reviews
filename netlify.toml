@@ -49,6 +49,24 @@
 # the wordmark instead of around it, because those selectors only exist in the new
 # CSS. Filenames here are stable (so a photo can be swapped in place), which means
 # the freshness has to come from the header.
+# ⚠ CLOUDFLARE OVERRIDES THE NEXT TWO BLOCKS IN PRODUCTION.
+# augustshair.com is proxied through Cloudflare, whose Browser Cache TTL (4 h by
+# default on the Free plan) rewrites Cache-Control on static assets. Measured live:
+#   *.html          max-age=0      -> max-age=0          honoured
+#   /assets/css/*   max-age=0      -> max-age=14400      OVERRIDDEN
+#   /assets/js/*    max-age=0      -> max-age=14400      OVERRIDDEN
+#   /assets/img/*   max-age=3600   -> max-age=14400      OVERRIDDEN
+#   /assets/fonts/* 1 year         -> 1 year             honoured
+#
+# So the freshness these blocks ask for is NOT what visitors get, and the thing
+# actually protecting the site is `?v=<content hash>` on every CSS/JS URL: a changed
+# stylesheet gets a new URL, so a 4-hour-old cached copy is never requested again.
+# That cache-buster is load-bearing in production — do not remove it on the grounds
+# that "we set max-age=0 anyway". This page has already broken three times from new
+# markup meeting an old stylesheet.
+#
+# To make these blocks mean what they say: Cloudflare -> Caching -> Configuration ->
+# Browser Cache TTL -> "Respect Existing Headers".
 [[headers]]
   for = "/assets/css/*"
   [headers.values]

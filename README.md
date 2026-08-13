@@ -888,6 +888,35 @@ is no build command — the site is static.
 - **the CSS and JS revalidate on every request.** See below — this one has already
   produced a broken page once.
 
+### Cloudflare sits in front of Netlify and overrides these headers
+
+`augustshair.com` is proxied through Cloudflare (`188.114.96/97.x`), and its
+Browser Cache TTL rewrites `Cache-Control` on static assets. Measured on the live
+site:
+
+| path | `netlify.toml` asks | actually served |
+|---|---|---|
+| `*.html` | `max-age=0` | `max-age=0` ✓ |
+| `/assets/css/*` | `max-age=0` | **`max-age=14400`** |
+| `/assets/js/*` | `max-age=0` | **`max-age=14400`** |
+| `/assets/img/*` | `max-age=3600` | `max-age=14400` |
+| `/assets/fonts/*` | 1 year immutable | 1 year immutable ✓ |
+
+HTML always revalidates, so **a new review is visible immediately** — that part is
+fine. But CSS and JS are cached in the browser for four hours regardless of what
+this repo asks for, which is exactly the failure below that has already hit this
+page three times.
+
+**What actually saves it is `?v=<content hash>`, not the header.** A changed
+stylesheet gets a different URL, so a four-hour-old cached copy is never requested
+again. In production that cache-buster is the whole protection — do not remove it
+because `netlify.toml` says `max-age=0`, because in front of Cloudflare it doesn't.
+
+One click restores the intent: Cloudflare → *Caching → Configuration → Browser
+Cache TTL* → **Respect Existing Headers**.
+
+`www` already 301s to the apex, so there is nothing to fix there.
+
 ### The cache header that breaks the page
 
 `must-revalidate` does **not** mean "check every time". It only forbids serving a
