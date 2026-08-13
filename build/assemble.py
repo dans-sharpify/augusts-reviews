@@ -86,9 +86,26 @@ def substitute(text, values):
 _HASHES = {}
 
 
+def asset_digest(path):
+    """Content hash of a text asset, with line endings normalised out.
+
+    NORMALISING IS THE WHOLE POINT. `.gitattributes` stores these files as LF and
+    un-normalises on checkout, so `app.css` is CRLF in a Windows working tree and
+    LF on the ubuntu-latest runner — and hashing the raw bytes therefore produced a
+    DIFFERENT cache-buster on each platform (1e0652bf vs 4da4f8a4 for the same
+    file). Every build on the other platform then rewrote all four pages, so the
+    weekly Action would have committed a "refresh Google reviews" that changed
+    nothing but a query string, forever.
+
+    Line endings are not content for a stylesheet, and this value is only a cache
+    key — it has to change when the CSS changes and stay put when it does not. It
+    does not have to match the bytes actually served."""
+    return hashlib.sha1(path.read_bytes().replace(b"\r\n", b"\n")).hexdigest()[:8]
+
+
 def _digest(rel):
     if rel not in _HASHES:
-        _HASHES[rel] = hashlib.sha1((SITE / rel).read_bytes()).hexdigest()[:8]
+        _HASHES[rel] = asset_digest(SITE / rel)
     return _HASHES[rel]
 
 

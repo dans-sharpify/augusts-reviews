@@ -359,7 +359,12 @@ else:
 # older build: a wrong-but-present ?v= looks fine and caches forever.
 for page, doc in html.items():
     for url, ver in re.findall(r'(?:href|src)="(assets/(?:css|js)/[^"?]+)\?v=([0-9a-f]+)"', doc):
-        want = hashlib.sha1((SITE / url).read_bytes()).hexdigest()[:8]
+        # Line endings normalised out, exactly as assemble.py does it — these files
+        # are stored LF and checked out CRLF on Windows, so hashing raw bytes makes
+        # the hash platform-dependent and this assertion fail on one of them. See
+        # `asset_digest` in assemble.py.
+        want = hashlib.sha1(
+            (SITE / url).read_bytes().replace(b"\r\n", b"\n")).hexdigest()[:8]
         if ver != want:
             fail(f"[{page}] {url} is versioned ?v={ver} but its bytes hash to {want} "
                  "— rerun build/assemble.py")
