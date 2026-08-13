@@ -393,6 +393,20 @@ def main():
         log("no new reviews")
     log(f"archive now: {st['total']} review(s)")
 
+    # Tell GitHub Actions whether anything REAL moved, so the commit message can
+    # tell the truth. `fetched` and `source` change on every successful run, so the
+    # file is always dirty and "did git see a diff?" cannot answer this.
+    out = os.environ.get("GITHUB_OUTPUT")
+    if out:
+        changed = bool(st["added"] or st["removed"])
+        with open(out, "a", encoding="utf-8") as fh:
+            fh.write(f"changed={'true' if changed else 'false'}\n")
+            fh.write(f"added={len(st['added'])}\n")
+            fh.write(f"removed={len(st['removed'])}\n")
+            fh.write(f"total={st['total']}\n")
+            fh.write(f"rating={doc['place'].get('rating')}\n")
+            fh.write(f"count={doc['place'].get('count')}\n")
+
     if args.dry_run:
         log("--dry-run: nothing written")
         return 0

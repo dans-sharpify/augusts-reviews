@@ -491,6 +491,34 @@ place.
 hook, so the merged file died with the build container. `check-deploy.py` fails if
 a `[functions."refresh-reviews"]` block reappears while the workflow exists.
 
+##### What can stop it, and what happens when it does
+
+"Automatic" is true, "guaranteed" is not. The honest list, worst first:
+
+| what | effect | how you find out |
+|---|---|---|
+| **The first real run has never happened.** `_apify_run` (start → poll → read dataset) was written against the API and never executed — no token here. | the whole refresh | **run it by hand once** after adding the token. This is the one item that needs a human. |
+| `APIFY_TOKEN` missing, revoked, or credit exhausted | no updates | **red job + GitHub email** — this is what `--strict` buys. Before it, a bad token meant a green job doing nothing, forever. |
+| **GitHub disables a scheduled workflow after 60 days of no repository activity** (public repos) | schedule switches itself off | GitHub emails first; one click re-enables. Mitigated: this job commits on *every* run, so the repo is never quiet for 60 days. |
+| GitHub drops the run — scheduled events "can be delayed… some queued jobs may be dropped" under load | a week skipped | nothing. Harmless by design: the harvest is a **full** re-read, not incremental, so the next run catches up completely. |
+| Google changes Maps' markup and the actor breaks | no updates | red job (the actor run reports FAILED, and `--strict` propagates it) |
+| Netlify build fails | site keeps the last good deploy | Netlify emails; `assemble.py` exits non-zero rather than shipping a broken page |
+| Nobody looks at any of it for a year | archive silently ages | `check-deploy.py` warns once `google-reviews.json` is 45 days old |
+
+Two design choices follow from that table and are worth not undoing:
+
+- **`--strict` in the workflow, plain exit-0 everywhere else.** A broken fetch must
+  never fail a *deploy* — the committed archive is a complete, valid dataset on its
+  own. But in the scheduled job, silence is the failure, so it must go red.
+- **It commits on every successful run, not only when a review changed.** The
+  archive records `fetched`/`source`, so a no-change run still moves the file, and
+  that weekly commit is also what keeps the 60-day inactivity timer from ever
+  firing. The commit message distinguishes the two cases
+  (`Google reviews: +1 -0 (50 on file, 4.9 from 84)` vs
+  `Google reviews: no change (49 on file, 4.9 from 83)`) using the fetch step's
+  `changed` output — `git diff` cannot tell you, because the timestamp always
+  differs. Each run also writes a summary to the Actions run page.
+
 ##### Connecting it up
 
 **This folder is its own git repository** — `github.com/dans-sharpify/augusts-reviews`,

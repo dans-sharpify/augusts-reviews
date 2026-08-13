@@ -70,8 +70,14 @@ jobs:
           python-version: "3.11"
 
       - name: Fetch the current Google reviews
+        id: fetch
         working-directory: ${{ env.PROJECT }}
-        run: python build/fetch-google-reviews.py
+        # --strict is the difference between "this job tells you when it breaks" and
+        # "this job is green forever while nothing updates". Without it a missing or
+        # revoked APIFY_TOKEN exits 0 by design — which is right for a Netlify build,
+        # where a broken fetch must not fail a deploy, and exactly wrong here, where
+        # silence IS the failure. Red job -> GitHub emails the repo owner.
+        run: python build/fetch-google-reviews.py --strict
 
       - name: Re-render the pages
         working-directory: ${{ env.PROJECT }}
@@ -83,18 +89,47 @@ jobs:
         working-directory: ${{ env.PROJECT }}
         run: python build/check-deploy.py
 
-      - name: Commit, if anything actually changed
+      - name: Commit
         working-directory: ${{ env.PROJECT }}
+        # This commits on EVERY successful run, not only when a review changed, and
+        # that is deliberate twice over:
+        #
+        #  * The archive records `fetched`/`source`, so a successful no-change run
+        #    still moves the file. Suppressing that would throw away the only
+        #    evidence the refresh is alive.
+        #  * GitHub disables a scheduled workflow after 60 days of no repository
+        #    activity. This salon gets ~2 reviews a month, so a commit-only-on-change
+        #    job could easily go quiet for 60 days and switch ITSELF off. The weekly
+        #    commit is the keepalive.
+        #
+        # The message tells the truth about which of the two happened — that is what
+        # the `changed` output from the fetch step is for. `git diff` cannot answer
+        # it, because the timestamp always differs.
         run: |
           if git diff --quiet -- build/google-reviews.json site/; then
-            echo "No new reviews — nothing to commit."
+            echo "Nothing changed at all — not even a timestamp. Skipping."
             exit 0
           fi
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add build/google-reviews.json site/
-          n=$(python -c "import json;print(len(json.load(open('build/google-reviews.json',encoding='utf-8'))['reviews']))")
-          git commit -m "AUGUSTS: refresh Google reviews ($n on file)"
+          if [ "${{ steps.fetch.outputs.changed }}" = "true" ]; then
+            git commit -m "Google reviews: +${{ steps.fetch.outputs.added }} -${{ steps.fetch.outputs.removed }} (${{ steps.fetch.outputs.total }} on file, ${{ steps.fetch.outputs.rating }} from ${{ steps.fetch.outputs.count }})"
+          else
+            git commit -m "Google reviews: no change (${{ steps.fetch.outputs.total }} on file, ${{ steps.fetch.outputs.rating }} from ${{ steps.fetch.outputs.count }})"
+          fi
           # Rebase rather than force: this branch is shared with humans.
           git pull --rebase --autostash
           git push
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### Google reviews"
+            echo ""
+            echo "- changed: \`${{ steps.fetch.outputs.changed || 'fetch failed' }}\`"
+            echo "- added: ${{ steps.fetch.outputs.added || 0 }} / removed: ${{ steps.fetch.outputs.removed || 0 }}"
+            echo "- on file: ${{ steps.fetch.outputs.total || 0 }}"
+            echo "- live rating: ${{ steps.fetch.outputs.rating || '?' }} from ${{ steps.fetch.outputs.count || '?' }} reviews"
+          } >> "$GITHUB_STEP_SUMMARY"
