@@ -17,7 +17,11 @@ keeps the last good deploy live rather than shipping a broken page. See "Google
 reviews".
 
 ```
-augusts/
+augusts/                    ← this folder IS the git repo root
+├── .gitignore              excludes _qa/ (204 screenshots, 82 MB, regenerable)
+├── .gitattributes          text=auto — load-bearing, see "Line endings" below
+├── .github/workflows/
+│   └── augusts-google-reviews.yml   weekly: fetch → assemble → gate → COMMIT
 ├── netlify.toml            publish = site, caching + security headers
 ├── build/                  ← generators (not deployed)
 │   ├── index.template.html the front page in Latvian, with @include + {{TOKEN}}
@@ -48,13 +52,7 @@ augusts/
 │   ├── 404.html            EN with a plain-text link to the Latvian page
 │   ├── robots.txt · sitemap.xml · favicon.ico · icon-*.png
 │   └── assets/{css,js,fonts,img}
-└── _qa/                    screenshots + probe output (not deployed)
-
-  …and one file outside this folder, at the repo root (GitHub only reads
-  workflows from there):
-  .github/workflows/augusts-google-reviews.yml
-                            weekly: fetch → assemble → gate → COMMIT the reviews,
-                            which Netlify then deploys. See "Google reviews".
+└── _qa/                    screenshots + probe output (git-ignored, not deployed)
 ```
 
 **All seven HTML pages are generated.** Edit `build/index.template.html` or
@@ -482,14 +480,29 @@ in `netlify.toml` while the workflow exists.
 
 ##### Connecting it up
 
-This project has **no GitHub remote yet** — the local `meta-ad-generator` repo has
-`git init` and zero commits. So:
+**This folder is its own git repository**, with one commit on `main` and no remote
+yet. It is deliberately NOT the whole `meta-ad-generator` tree: that is ~10,000
+files and about 1 GB, 978 MB of which is other clients' projects, and connecting it
+to Netlify would hand a third party read access to all of them. This repo is 83
+files and 8.5 MB.
 
-1. Create the repo and push. `output/augusts/site/` must be **committed**, not
-   ignored — it is the deployable.
-2. Netlify → *Add new site → Import an existing project* → the repo. Set **base
-   directory `output/augusts`**; it then reads this folder's `netlify.toml` and
-   everything else (publish dir, build command, headers) comes from there.
+Note there is a `.git` in `meta-ad-generator/` too, from an old `git init` with zero
+commits and no remote. It is inert; this inner repo is the real one.
+
+1. Create an **empty** repo on GitHub — no README, no .gitignore, no licence, or
+   the first push conflicts. Then, from this folder:
+
+   ```
+   git remote add origin git@github.com:<you>/augusts08.git
+   git push -u origin main
+   ```
+
+   Do **not** use GitHub's web uploader: it caps at 100 files per drag-and-drop
+   ("Yowza, that's a lot of files"), and this repo has 83 files in nested folders
+   the uploader flattens anyway.
+2. Netlify → *Add new site → Import an existing project* → this repo. Leave **base
+   directory empty** (the repo root is the site), and it reads `netlify.toml` for
+   the publish dir, build command and headers.
 3. Repo → *Settings → Secrets and variables → Actions* → add
    **`GOOGLE_MAPS_API_KEY`** (a Maps Platform key with Places API (New) enabled,
    restricted to that one API).
@@ -497,6 +510,27 @@ This project has **no GitHub remote yet** — the local `meta-ad-generator` repo
    write** (the job pushes a commit).
 5. Run the workflow once by hand (*Actions → Run workflow*) instead of waiting a
    week.
+
+##### Line endings — `.gitattributes` is not cosmetic
+
+The pages are generated on two platforms: by hand on Windows, where Python's
+`write_text` emits CRLF, and by the weekly Action on `ubuntu-latest`, where it
+emits LF. Without `* text=auto` the repo stores whichever the last writer used, so
+the Action's "did anything change?" test —
+
+```
+git diff --quiet -- build/google-reviews.json site/
+```
+
+— sees **all 54 files in `site/` as modified on every run**, and commits and
+deploys a "refresh Google reviews" every week whether or not a single review
+changed. A real change would then be invisible in a diff that rewrites every line
+of every page.
+
+Verified rather than assumed: all 39 text blobs in the repo contain zero CR bytes,
+and rewriting a page with LF (what the runner does) produces no diff. Careful with
+how you check this — `git show :path` applies the checkout filter and shows CRLF
+even when the stored blob is LF; use `git cat-file blob <hash>`.
 
 With no key set the fetch warns and exits 0, so both the Action and the Netlify
 build stay green and simply change nothing. That is deliberate — it must not look
