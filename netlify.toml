@@ -13,19 +13,18 @@
 # version, and running both did the same job twice. Deleted deliberately — do not
 # add it back without deleting the workflow.
 #
-# The build command below still re-renders on every deploy, and still calls the
-# fetch first:
-#   fetch-google-reviews.py  tops the archive up on any manual deploy too. With no
-#                            GOOGLE_MAPS_API_KEY set it prints a warning and exits
-#                            0, leaving the committed archive alone — so this is
-#                            safe before the key exists. The merge only ever ADDS.
-#   assemble.py              regenerates the nine pages and fails the build
-#                            (non-zero) if anything is off, which keeps the
-#                            previous deploy live rather than shipping a broken
-#                            page.
+# The build does NOT fetch. It used to, and that was a mistake worth naming: the
+# fetch needs a credential, and putting it here would mean the same secret in two
+# places, a scraper firing on every unrelated deploy, and two writers racing to
+# decide what the archive says. The Action fetches and commits; this just renders
+# whatever is in the repo.
+#
+# assemble.py regenerates the seven pages and exits non-zero on any of its
+# assertions, which fails the deploy and keeps the previous one live rather than
+# shipping a broken page.
 [build]
   publish = "site"
-  command = "python3 build/fetch-google-reviews.py && python3 build/assemble.py"
+  command = "python3 build/assemble.py"
 
 [build.environment]
   # assemble.py uses dict `|=`, which is 3.9+. Pinning beats discovering the

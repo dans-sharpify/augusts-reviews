@@ -444,119 +444,96 @@ id to `HIDDEN` in `fetch-google-reviews.py` and rebuild.
 #### How the refresh works, and what to switch on
 
 `fetch-google-reviews.py` has two sources and **only ever adds** — a merge that
-could delete would wipe the archive down to five the first time it ran.
+could delete would wipe the archive down to five reviews the first time it ran,
+and it would look like it had worked.
 
-| source | what it gets | cost | use it for |
+| source | what it gets | cost | card? |
 |---|---|---|---|
-| `places` *(default)* | rating, count, newest ~5 | **free** — the `reviews` field bills under *Place Details Enterprise + Atmosphere*, 1,000 free calls/month; weekly is 4 | the ongoing refresh |
-| `apify` | **all** of them | ~$0.30/run, and it is scraping | seeding or repairing the archive |
+| **`apify`** *(default, in use)* | **all 83** | **$0.05/run**, ~$0.22/mo weekly, out of a **$5/mo free credit** | **no** |
+| `places` | rating, count, newest ~5 | free (1,000 calls/mo) | **yes — this is why it is not used** |
 
-The archive was seeded with `--source apify`. `--dataset <id>` / `--file <path>`
-re-read a harvest that already happened, for free.
+**Google Maps Platform requires a billing account on every key, even inside the
+free tier.** That ruled `places` out. `apify` is the
+`compass/Google-Maps-Reviews-Scraper` actor on Apify's free plan, which needs no
+card; it bills PAY_PER_EVENT at **$0.0006 per review**, so ~85 reviews is about
+five cents, and every run also carries `maxTotalChargeUsd=0.50` as a hard stop in
+case a misconfigured input ever tried to scrape a thousand places.
+
+The honest caveat: `apify` is scraping, which Google's Maps terms do not invite.
+`--source places` is the cleaner answer the day a card is acceptable, and it is a
+one-word change. The fully-official *card-free* route is the **Google Business
+Profile API** — it returns everything, lets the salon reply, and costs nothing —
+but it needs a verified GBP 60+ days old, an access-request form approved by
+Google, and OAuth refresh-token plumbing. That is a project, not a setting.
+
+`--dataset <id>` / `--file <path>` re-read a harvest that already happened, for
+free. The archive was seeded that way.
 
 #### The refresh runs in GitHub Actions
 
-`.github/workflows/augusts-google-reviews.yml` (at the **repo root**, not in this
-folder — GitHub only reads workflows from there):
+`.github/workflows/augusts-google-reviews.yml`:
 
 > weekly cron → `fetch-google-reviews.py` → `assemble.py` → `check-deploy.py` →
 > **commits `build/google-reviews.json` + `site/`** → Netlify's continuous
 > deployment picks up the push and deploys.
 
-**Why it commits, and why that is the whole point.** Places API returns only the
-newest ~5 reviews and has no pagination. A refresh whose output dies with the
-build container therefore loses every review that scrolls out of that window —
-and it loses them silently, because the page still renders and the number at the
-top is still right. Committing the archive means it can only ever grow.
+Running the deploy gate *before* the commit is deliberate: a bad render fails the
+job instead of shipping.
 
-Running the deploy gate *before* the commit is the other reason: a bad render
-fails the job instead of deploying.
+**The Netlify build does NOT fetch**, and that is worth naming as a decision. It
+used to. But the fetch needs a credential, so having it in both places would mean
+the same secret stored twice, a scraper firing on every unrelated deploy, and two
+writers racing over what the archive says. Netlify's build command is now just
+`python3 build/assemble.py` — it renders what is in the repo. One fetcher, one
+place.
 
-**A Netlify scheduled function used to do this instead** (`refresh-reviews.js`,
-pinging a build hook). It worked, but it was the throwaway-container version, and
-running both did the same job twice and raced on the same commit. **Deleted** —
-`check-deploy.py` now fails if a `[functions."refresh-reviews"]` block reappears
-in `netlify.toml` while the workflow exists.
+**A Netlify scheduled function did this first** and was deleted: it pinged a build
+hook, so the merged file died with the build container. `check-deploy.py` fails if
+a `[functions."refresh-reviews"]` block reappears while the workflow exists.
 
 ##### Connecting it up
 
-**This folder is its own git repository**, with one commit on `main` and no remote
-yet. It is deliberately NOT the whole `meta-ad-generator` tree: that is ~10,000
-files and about 1 GB, 978 MB of which is other clients' projects, and connecting it
-to Netlify would hand a third party read access to all of them. This repo is 83
-files and 8.5 MB.
+**This folder is its own git repository** — `github.com/dans-sharpify/augusts-reviews`,
+on `main`. It is deliberately NOT the whole `meta-ad-generator` tree: that is
+~10,000 files and about 1 GB, 978 MB of which is other clients' projects, and
+connecting it to Netlify would hand a third party read access to all of them. This
+repo is 83 files and 8.5 MB. (`meta-ad-generator/.git` also exists, from an old
+`git init` with zero commits and no remote — inert.)
 
-Note there is a `.git` in `meta-ad-generator/` too, from an old `git init` with zero
-commits and no remote. It is inert; this inner repo is the real one.
+Netlify is connected with **base directory empty** (the repo root *is* the site).
+Two things left, both in the GitHub repo:
 
-1. Create an **empty** repo on GitHub — no README, no .gitignore, no licence, or
-   the first push conflicts. Then, from this folder:
+1. *Settings → Secrets and variables → Actions → New repository secret* →
+   **`APIFY_TOKEN`**, from `console.apify.com` → *Settings → API & Integrations*.
+   No card, no billing account. Sign-up gives the $5/month credit.
+2. *Settings → Actions → General → Workflow permissions* → **Read and write**
+   (the job pushes a commit).
 
-   ```
-   git remote add origin git@github.com:<you>/augusts08.git
-   git push -u origin main
-   ```
+Then *Actions → AUGUSTS — refresh Google reviews → Run workflow* to test it now
+instead of waiting for Monday.
 
-   Do **not** use GitHub's web uploader: it caps at 100 files per drag-and-drop
-   ("Yowza, that's a lot of files"), and this repo has 83 files in nested folders
-   the uploader flattens anyway.
-2. Netlify → *Add new site → Import an existing project* → this repo. Leave **base
-   directory empty** (the repo root is the site), and it reads `netlify.toml` for
-   the publish dir, build command and headers.
-3. Repo → *Settings → Secrets and variables → Actions* → add
-   **`GOOGLE_MAPS_API_KEY`**. See "Getting the API key" below — the two things
-   that catch people are that Maps Platform requires a billing account even inside
-   the free tier, and that it must be **Places API (New)**, not the legacy Places
-   API.
-4. Repo → *Settings → Actions → General → Workflow permissions* → **Read and
-   write** (the job pushes a commit).
-5. Run the workflow once by hand (*Actions → Run workflow*) instead of waiting a
-   week.
-
-##### Getting the API key
-
-`console.cloud.google.com/project/_/google/maps-apis/credentials` →
-*Create credentials → API key*.
-
-- **A billing account is required**, even though this usage is free. Google ties
-  every Maps Platform key to one. The `reviews` field bills under *Place Details
-  Enterprise + Atmosphere*, which has **1,000 free calls a month**; a weekly
-  refresh is four, so the card is never charged for this. Set a budget alert
-  anyway, and if you want a hard stop rather than an alert:
-  *IAM & Admin → Quotas & System Limits*, filter for Places API, tick the
-  requests-per-day quota, **Edit → New value → Submit request**. A budget alert
-  only emails you; a quota override actually caps it.
-- **Enable "Places API (New)"**, not "Places API". They are two separate products
-  in the console and the legacy one will not answer
-  `places.googleapis.com/v1/places/…`, which is what the fetch calls.
-- **Restrict the key.** *API restrictions* → **Places API (New)** only.
-  *Application restrictions* → **None**: this key runs from a GitHub Actions
-  runner, whose IP changes every run, so an IP restriction would break it and a
-  referrer restriction is for browser keys. Its protection is that it is a repo
-  secret and API-restricted, never shipped to a client.
-
-**Test it before trusting it.** The key is only exercised once a week, so a bad one
-would sit silent for a long time. From this folder:
+**Test the token locally first** — it is only exercised once a week, so a bad one
+would sit silent:
 
 ```powershell
-$env:GOOGLE_MAPS_API_KEY = "AIza..."
+$env:APIFY_TOKEN = "apify_api_..."
 python build/fetch-google-reviews.py --dry-run
 ```
 
-`--dry-run` makes the real request and writes nothing. What the answers look like:
+`--dry-run` starts a real run and writes nothing. What the answers mean:
 
 | output | meaning |
 |---|---|
 | `place: Frizierdarbnīca AUGUSTS — 4.9 from 83` | working |
-| `INVALID_ARGUMENT: API key not valid` | wrong key, or extra whitespace pasted |
-| `Places API (New) has not been used in project … or it is disabled` | you enabled the legacy Places API |
-| `PERMISSION_DENIED` | key restricted to the wrong API |
-| `GOOGLE_MAPS_API_KEY is not set` | the env var did not reach the process |
+| `401: User was not found or authentication token is not valid` | wrong token |
+| `APIFY_TOKEN is not set` | the env var did not reach the process |
+| `apify run … ended FAILED` | the actor itself broke; the run URL is in the message |
+| `the harvest came back empty` | it ran but scraped nothing — treated as an error, not as "no reviews" |
 
-Every one of those is a **warning, not a failure** — the fetch exits 0 and leaves
-the committed archive alone, so a bad key never breaks a build or a deploy. It just
-means the reviews stop moving, which is why `check-deploy.py` warns once the archive
-is 45 days old.
+Every one of those is a **warning, not a failure**: the fetch exits 0 and leaves
+the committed archive alone, so a bad token can never break a build or a deploy.
+It only means the reviews stop moving — which is why `check-deploy.py` warns once
+the archive is 45 days old.
 
 ##### Line endings — `.gitattributes` is not cosmetic
 

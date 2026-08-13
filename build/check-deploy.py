@@ -520,8 +520,11 @@ else:
         problems.append("no workflow_dispatch (cannot be run by hand)")
     if "contents: write" not in body:
         problems.append("no `contents: write` permission — the commit step cannot push")
-    if "GOOGLE_MAPS_API_KEY" not in body:
-        problems.append("never passes GOOGLE_MAPS_API_KEY, so the fetch can only no-op")
+    # Whichever source is in use, the job must hand the fetch *a* credential or it
+    # can only ever no-op — green, silent, and doing nothing.
+    if not ("APIFY_TOKEN" in body or "GOOGLE_MAPS_API_KEY" in body):
+        problems.append("passes neither APIFY_TOKEN nor GOOGLE_MAPS_API_KEY, so the "
+                        "fetch can only no-op")
     for script in ("fetch-google-reviews.py", "assemble.py", "check-deploy.py"):
         if script not in body:
             problems.append(f"does not run {script}")

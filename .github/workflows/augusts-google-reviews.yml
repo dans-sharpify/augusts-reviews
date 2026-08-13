@@ -15,7 +15,11 @@
 #
 # SETUP
 #   1. Settings -> Secrets and variables -> Actions -> New repository secret
-#      GOOGLE_MAPS_API_KEY = a Maps Platform key with Places API (New) enabled
+#      APIFY_TOKEN = from console.apify.com -> Settings -> API & Integrations
+#      Apify's free plan needs NO CREDIT CARD and includes $5/month of credit;
+#      this actor bills $0.0006 per review, so ~85 reviews is about $0.05 a run
+#      and a weekly refresh spends roughly $0.22 of the $5. Each run also carries
+#      maxTotalChargeUsd=0.50 as a hard cap.
 #   2. Settings -> Actions -> General -> Workflow permissions
 #      -> "Read and write permissions"  (this job pushes a commit)
 #   3. Connect the repo to Netlify (see README "Google reviews").
@@ -50,6 +54,10 @@ jobs:
       # site was split into its own repository so Netlify only gets read access to
       # this one client, instead of every project in the ad-generator tree.
       PROJECT: .
+      # The default source is `apify`, which needs no billing account anywhere.
+      # GOOGLE_MAPS_API_KEY is passed too so that switching to `--source places`
+      # later is a one-word change rather than a workflow edit; it is unset today.
+      APIFY_TOKEN: ${{ secrets.APIFY_TOKEN }}
       GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
 
     steps:

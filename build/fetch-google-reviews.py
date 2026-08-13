@@ -1,32 +1,40 @@
 # -*- coding: utf-8 -*-
 """Refresh build/google-reviews.json — the salon's Google reviews.
 
-    python build/fetch-google-reviews.py                  # Places API (needs a key)
-    python build/fetch-google-reviews.py --source apify   # full re-harvest (needs a token)
+    python build/fetch-google-reviews.py                  # full harvest via Apify
     python build/fetch-google-reviews.py --dry-run        # show what would change
+    python build/fetch-google-reviews.py --source places  # Google's own API (needs a card)
+    python build/fetch-google-reviews.py --dataset <id>   # re-read a past run, free
 
 Stdlib only, on purpose: this runs inside the Netlify build container, where a
 `pip install` is one more thing that can fail on a Tuesday.
 
 
-WHY THERE ARE TWO SOURCES
--------------------------
-`places` — Google's own Places API (New), `places.googleapis.com`. Official, no
-scraping, and free at any sane cadence: the `reviews` field bills under
-*Place Details Enterprise + Atmosphere*, which has a free cap of 1,000 calls a
-month; a weekly refresh is four. Its one real limit is DEPTH — Place Details
-returns a handful of reviews (five, in practice) and has no pagination, so it
-keeps the page CURRENT but cannot rebuild the archive.
+WHY THERE ARE TWO SOURCES, AND WHY apify IS THE DEFAULT
+-------------------------------------------------------
+`apify` (default) — the `compass/Google-Maps-Reviews-Scraper` actor. Walks the
+WHOLE list and returns every review, which is why it seeded this file and why it
+is now also the scheduled source. Apify's free plan needs **no credit card** and
+includes $5 of platform credit a month; the actor bills PAY_PER_EVENT at $0.0006
+per review, so ~85 reviews is about **$0.05 a run** — a weekly refresh spends
+roughly $0.22 of that $5. `maxTotalChargeUsd` caps each run regardless.
+The honest caveat: this is scraping, which Google's Maps terms do not invite.
 
-`apify` — the `compass/Google-Maps-Reviews-Scraper` actor, which walks the whole
-list and returns all of them. This is what seeded the file. It costs a few cents
-a run and it is scraping, which Google's Maps terms do not invite; use it to
-build or repair the archive, not on a schedule.
+`places` — Google's own Places API (New). Official and free at this cadence
+(1,000 free calls a month on the `reviews` SKU, and a weekly refresh is four),
+but **Google requires a billing account on every Maps Platform key even inside
+the free tier**, which ruled it out here. It also only returns a handful of
+reviews (five, in practice) with no pagination, so it can keep the page current
+but cannot rebuild the archive.
 
-Together they give the shape that actually works: the JSON in this directory is
-the durable archive, `places` tops it up, and the merge below NEVER deletes. So
-the page always shows at least everything already committed here, and a refresh
-can only add.
+If a card is ever acceptable, `--source places` is the cleaner long-term answer.
+The fully-official card-free alternative is the **Google Business Profile API**,
+which returns everything and lets the salon reply — but it needs an access-request
+form approved by Google plus OAuth refresh-token plumbing, so it is a project
+rather than a setting.
+
+Either way the JSON in this directory is the durable archive and the merge below
+NEVER deletes, so a refresh can only ever add.
 
 
 THE ONE RULE ABOUT THE TEXT
@@ -44,6 +52,7 @@ import os
 import pathlib
 import re
 import sys
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -158,6 +167,60 @@ def _apify_get(path, token, **params):
         return json.loads(r.read().decode("utf-8"))
 
 
+def _apify_run(token):
+    """Start the actor, wait for it, return its dataset items.
+
+    ASYNC, NOT `run-sync-get-dataset-items`. The sync endpoint holds the HTTP
+    connection open for the whole scrape and gives up at 300 s; walking ~85
+    reviews takes a couple of minutes and would sit uncomfortably close to that
+    ceiling, with nothing to show for it if it tripped — the run keeps going and
+    bills, the caller just never sees the data. Start / poll / fetch instead.
+
+    `maxTotalChargeUsd` is a real safety net, not decoration: the actor bills
+    PAY_PER_EVENT at $0.0006 per review, so a normal run is about $0.05. The cap
+    means a runaway (a search URL that matched a thousand places, say) stops
+    instead of eating the month's free credit."""
+    payload = json.dumps({
+        # cid, not a search URL: it pins the run to exactly one place, which is
+        # also what keeps the bill predictable.
+        "startUrls": [{"url": f"https://www.google.com/maps?cid={CID}"}],
+        "maxReviews": 500,
+        "reviewsSort": "newest",
+        "language": "lv",
+        "reviewsOrigin": "google",
+        "personalData": True,
+    }).encode()
+    opts = urllib.parse.urlencode({
+        "token": token,
+        "timeout": 900,
+        "maxTotalChargeUsd": "0.50",
+    })
+    req = urllib.request.Request(
+        f"https://api.apify.com/v2/acts/{APIFY_ACTOR}/runs?{opts}",
+        data=payload, headers={"Content-Type": "application/json"})
+    run = json.loads(urllib.request.urlopen(req, timeout=60).read().decode())["data"]
+    run_id, dataset_id = run["id"], run["defaultDatasetId"]
+    log(f"apify run {run_id} started — walking the review list, ~1-2 min")
+
+    # Poll rather than sleep-and-hope. Terminal states per the Apify API.
+    for attempt in range(120):
+        time.sleep(5)
+        status = _apify_get(f"actor-runs/{run_id}", token)["data"]["status"]
+        if status == "SUCCEEDED":
+            break
+        if status in ("FAILED", "ABORTED", "TIMED-OUT", "TIMING-OUT"):
+            raise RuntimeError(
+                f"apify run {run_id} ended {status} — see "
+                f"https://console.apify.com/actors/runs/{run_id}")
+        if attempt and attempt % 12 == 0:
+            log(f"  still {status}…")
+    else:
+        raise RuntimeError(f"apify run {run_id} did not finish in 10 minutes")
+
+    return _apify_get(f"datasets/{dataset_id}/items", token,
+                      clean="true", format="json")
+
+
 def from_apify(token, dataset=None, local=None):
     """Whole-list harvest. `--dataset` reads a run that already happened (the
     seed came in this way, and re-reading a dataset costs nothing); `--file`
@@ -170,24 +233,12 @@ def from_apify(token, dataset=None, local=None):
         origin = f"apify-dataset:{dataset}"
     else:
         if not token:
-            raise SystemExit("APIFY_TOKEN is required to start a new actor run "
-                             "(or pass --dataset / --file)")
-        body = json.dumps({
-            "startUrls": [{"url": f"https://www.google.com/maps?cid={CID}"}],
-            "maxReviews": 1000,
-            "reviewsSort": "newest",
-            "language": "lv",
-            "reviewsOrigin": "google",
-            "personalData": True,
-        }).encode()
-        req = urllib.request.Request(
-            f"https://api.apify.com/v2/acts/{APIFY_ACTOR}/run-sync-get-dataset-items"
-            f"?token={urllib.parse.quote(token)}",
-            data=body, headers={"Content-Type": "application/json"})
-        log("starting an Apify run — this walks the whole review list, give it a minute")
-        with urllib.request.urlopen(req, timeout=900) as r:
-            items = json.loads(r.read().decode("utf-8"))
+            raise RuntimeError("APIFY_TOKEN is not set")
+        items = _apify_run(token)
         origin = f"apify-run:{APIFY_ACTOR}"
+    if not items:
+        raise RuntimeError("the harvest came back empty — refusing to treat that as "
+                           "'no reviews'; the archive is left alone")
 
     place, out = {}, []
     for rv in items:
@@ -271,7 +322,7 @@ def merge(old, place, fresh, origin, prune=False):
 # ----------------------------------------------------------------------- main
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("--source", choices=("places", "apify"), default="places")
+    ap.add_argument("--source", choices=("apify", "places"), default="apify")
     ap.add_argument("--dataset", help="apify: read an existing dataset id instead of running the actor")
     ap.add_argument("--file", help="apify: read a dataset dump off disk")
     ap.add_argument("--language", default="lv", help="places: languageCode to request")
