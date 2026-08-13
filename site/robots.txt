@@ -3,4 +3,4 @@ Allow: /
 Disallow: /thank-you.html
 Disallow: /paldies.html
 
-Sitemap: https://augusts08.lv/sitemap.xml
+Sitemap: https://augustshair.com/sitemap.xml

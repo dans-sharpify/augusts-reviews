@@ -951,7 +951,7 @@ fallback. Bookings go through Calendly and never touch Netlify.
 
 ### Two settings that assume a domain
 
-`augusts08.lv` is hard-coded in the canonical URLs, the `hreflang` block,
+`augustshair.com` is hard-coded in the canonical URLs, the `hreflang` block,
 `sitemap.xml`, `robots.txt`, the JSON-LD, and the inline calendar's
 `embed_domain`. Change those if the domain differs.
 

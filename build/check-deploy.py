@@ -13,7 +13,10 @@ from datetime import datetime, timezone
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 SITE = ROOT / "site"
-DOMAIN = "augusts08.lv"
+# The live domain. Everything else derives from this — see the sitemap and
+# canonical checks below. It was `augusts08.lv` (an assumption, never
+# confirmed) until the client said the real one is augustshair.com.
+DOMAIN = "augustshair.com"
 BOOKING = "calendly.com/kristine-augusts/30min"
 
 # index.html is English (the main page); lv.html is the Latvian variant.
@@ -450,12 +453,44 @@ if len(warns) == before:
     ok("robots.txt points at the sitemap, disallows both thank-you pages, both are noindex")
 
 sm = read("sitemap.xml")
-for loc in ["https://augusts08.lv/", "https://augusts08.lv/lv.html",
-            "https://augusts08.lv/reviews.html", "https://augusts08.lv/atsauksmes.html"]:
+# Derived from DOMAIN, not spelled out: the domain changed once already (from an
+# assumed augusts08.lv to the real augustshair.com) and a hardcoded list here would
+# have kept passing while every canonical on the site pointed somewhere dead.
+for page in ["", "lv.html", "reviews.html", "atsauksmes.html"]:
+    loc = f"https://{DOMAIN}/{page}"
     if f"<loc>{loc}</loc>" not in sm:
         fail(f"sitemap.xml does not list {loc}")
 if not any("sitemap" in f for f in fails):
-    ok("sitemap.xml lists all four indexable pages with hreflang alternates")
+    ok(f"sitemap.xml lists all four indexable pages on {DOMAIN} with hreflang alternates")
+
+# Every canonical, hreflang and og:url must be on the LIVE domain. This site spent
+# its whole life so far declaring `augusts08.lv`, which turned out never to have
+# existed in DNS — and a canonical pointing at a host that does not resolve tells
+# Google the real page is somewhere that isn't, so the live URLs index under
+# neither. Nothing visibly breaks, which is why it needs an assertion.
+#
+# Any absolute URL whose host is neither the live domain nor a known third party
+# the page legitimately links out to.
+THIRD_PARTY = {
+    "calendly.com",                       # booking
+    "www.instagram.com", "www.facebook.com",
+    "search.google.com",                  # write-a-review / read-all-reviews
+    "www.google.com", "maps.google.com",
+    "maps.app.goo.gl",                    # the "get directions" short link
+    "schema.org",                         # JSON-LD @context
+}
+stale = set()
+for page, doc in allhtml.items():
+    for url in re.findall(r'(?:href|content|src)="(https?://[^"]+)"', strip_comments(doc)):
+        host = url.split("/")[2]
+        if host != DOMAIN and host not in THIRD_PARTY:
+            stale.add(f"{page}: {url}")
+if stale:
+    listed = "\n          ".join(sorted(stale)[:6])
+    fail(f"{len(stale)} absolute URL(s) on neither {DOMAIN} nor a known third "
+         f"party:\n          {listed}")
+else:
+    ok(f"every absolute URL is on {DOMAIN} or a known third party")
 
 # The old address still works, which is the problem: a stale one left on a page
 # looks live and quietly delivers to an inbox nobody is watching any more.
